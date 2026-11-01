@@ -1,0 +1,16 @@
+{
+  "nome": "Mercado Pago - abas PIX recebidos / PIX realizados (A CONFERIR)",
+  "instituicao": "MERCADO PAGO",
+  "adaptador": "extrato",
+  "colunas_obrigatorias": [],
+  "colunas_qualquer": ["PYN_STATUS", "PAYOUT_STATUS"],
+  "mapeamento": {},
+  "opcoes": {"instituicao": "MERCADO PAGO"},
+  "observacoes": [
+    "Mapeie PYN_STATUS ou PAYOUT_STATUS em 'Situação / status no banco'. Só situações reconhecidas como concluídas/aprovadas entram nos totais.",
+    "Em 'PIX recebidos' escolha natureza fixa CRÉDITO; em 'PIX realizados' escolha DÉBITO somente após conferir a aba.",
+    "PAYOUT_TYPE pode indicar saque (atm); não presuma que todo registro é transferência PIX.",
+    "Não importe a mesma operação das abas de movimentos e de PIX como se fossem operações distintas: a aba Duplicatas aponta repetições prováveis.",
+    "Perfil montado a partir da descrição da versão 2; confirme com amostra anonimizada do banco antes de uso em caso real."
+  ]
+}
