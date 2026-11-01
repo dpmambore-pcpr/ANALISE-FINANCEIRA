@@ -85,8 +85,17 @@ def listar(b, caso_id=None):
                "WHERE d.ativo=1 AND (d.caso_id IS NULL OR d.caso_id=?) ORDER BY d.id DESC", (caso_id,))
 
 
+PALAVRAS_VAZIAS = set("que qual quais quem como onde quando para por com sem dos das nos nas uma uns umas este esta isso "
+                     "esse essa sao foi ser ter tem existe existem houve pelo pela entre sobre mais menos".split())
+
+
 def _termos(consulta):
-    return [t for t in re.findall(r"\w{3,}", util.sem_acentos(consulta).lower())][:20]
+    return [t for t in re.findall(r"\w{3,}", util.sem_acentos(consulta).lower()) if t not in PALAVRAS_VAZIAS][:20]
+
+
+def _radical(t):
+    """Radical simples (sem dicionário) para casar singular/plural e variações: tarifas -> tarif."""
+    return t if len(t) <= 4 else t[:max(4, len(t) - 2)]
 
 
 def buscar(b, consulta, caso_id=None, limite=5):
@@ -94,7 +103,7 @@ def buscar(b, consulta, caso_id=None, limite=5):
     if not termos:
         return []
     if b.fts:
-        q = " OR ".join('"%s"' % t for t in termos)
+        q = " OR ".join('"%s"*' % _radical(t) for t in termos)
         try:
             return b.q("SELECT t.id, t.texto, d.titulo, d.categoria, d.id AS doc_id, bm25(conhecimento_fts) AS pont "
                        "FROM conhecimento_fts JOIN conhecimento_trechos t ON t.id=conhecimento_fts.rowid "
@@ -106,7 +115,7 @@ def buscar(b, consulta, caso_id=None, limite=5):
                  "JOIN conhecimento_docs d ON d.id=t.doc_id WHERE d.ativo=1 AND (d.caso_id IS NULL OR d.caso_id=?)", (caso_id,))
     for ln in linhas:
         txt = util.sem_acentos(ln["texto"]).lower()
-        ln["pont"] = -sum(txt.count(t) for t in termos)
+        ln["pont"] = -sum(txt.count(_radical(t)) for t in termos)
     return sorted([ln for ln in linhas if ln["pont"] < 0], key=lambda x: x["pont"])[:limite]
 
 
@@ -120,10 +129,10 @@ def adicionar_correcao(b, caso_id, pergunta, resposta_revisada, observacao, usua
 
 
 def buscar_correcoes(b, consulta, caso_id=None, limite=3):
-    termos = set(_termos(consulta))
+    termos = set(_radical(t) for t in _termos(consulta))
     linhas = b.q("SELECT * FROM ia_correcoes WHERE ativo=1 AND (caso_id IS NULL OR caso_id=?)", (caso_id,))
     for ln in linhas:
-        ln["pont"] = len(termos & set(_termos(ln["pergunta"])))
+        ln["pont"] = len(termos & set(_radical(t) for t in _termos(ln["pergunta"])))
     return sorted([ln for ln in linhas if ln["pont"] > 0], key=lambda x: -x["pont"])[:limite]
 
 

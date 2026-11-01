@@ -1,0 +1,56 @@
+name: pacote
+
+# Gera, a cada tag v*, dois arquivos na página Releases:
+#  - analise-bancaria-<versao>-codigo.zip   (somente código; para atualizar)
+#  - analise-bancaria-<versao>-windows.zip  (código + Python portátil oficial verificado por Sigstore)
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PY_VERSAO: "3.14.10"
+  PY_SHA256: "90905e64a840557d8c1bc4f5b74db3d7ee85e3ffb217611cac1c7813acea4159"
+  PY_ASSINANTE: "hugo@python.org"
+
+jobs:
+  pacote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Testes
+        run: python verificar.py
+      - name: Montar pacotes
+        run: |
+          set -e
+          VERSAO=$(python -c "import re;print(re.search(r'VERSAO = \"(.+)\"', open('financeira/__init__.py').read()).group(1))")
+          echo "VERSAO=$VERSAO" >> "$GITHUB_ENV"
+          mkdir -p dist/IA_Bancaria_Windows
+          git archive --format=tar HEAD | tar -x -C dist/IA_Bancaria_Windows
+          (cd dist && zip -qr "analise-bancaria-$VERSAO-codigo.zip" IA_Bancaria_Windows)
+          curl -sSfL -o py.zip "https://www.python.org/ftp/python/$PY_VERSAO/python-$PY_VERSAO-embed-amd64.zip"
+          curl -sSfL -o py.zip.sigstore "https://www.python.org/ftp/python/$PY_VERSAO/python-$PY_VERSAO-embed-amd64.zip.sigstore"
+          echo "$PY_SHA256  py.zip" | sha256sum -c -
+          python -m pip install -q sigstore
+          python -m sigstore verify identity --bundle py.zip.sigstore --cert-identity "$PY_ASSINANTE" --cert-oidc-issuer https://github.com/login/oauth py.zip
+          unzip -q py.zip -d dist/IA_Bancaria_Windows/runtime_windows
+          (cd dist && zip -qr "analise-bancaria-$VERSAO-windows.zip" IA_Bancaria_Windows)
+          sha256sum dist/*.zip | tee dist/SHA256SUMS.txt
+      - name: Publicar
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/SHA256SUMS.txt --title "Versão $VERSAO" \
+            --notes "Pacote Windows inclui Python $PY_VERSAO oficial (SHA-256 $PY_SHA256, assinatura Sigstore verificada). Confira os SHA-256 em SHA256SUMS.txt."
+      - uses: actions/upload-artifact@v4
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        with:
+          name: pacotes
+          path: dist/*.zip

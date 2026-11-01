@@ -1,0 +1,96 @@
+ANÁLISE BANCÁRIA LOCAL — VERSÃO 2 - PROTÓTIPO DE TESTE
+Delegacia de Polícia de Mamborê
+
+O QUE É
+É um protótipo funcional para organizar e pesquisar extratos bancários no próprio computador. A tela é aberta em um navegador, mas o programa é executado localmente. Pode calcular totais, classificar origens/destinos, desenhar diagrama simples, criar rascunho de relatório com imagens marcadas e consultar um modelo local de IA. Não é uma reprodução completa do Dash Virtus nem substitui a conferência dos arquivos e valores pela equipe.
+
+ANTES DE USAR DADOS REAIS
+1. Teste primeiro com os arquivos da pasta exemplos, que são fictícios.
+2. Compare totais, datas, titular, natureza, contrapartes e resultados com os arquivos recebidos e com o SIMBA/Dash Virtus.
+3. Use local protegido e armazenamento criptografado autorizado pela unidade. A pasta dados contém cópias dos arquivos originais e um banco de dados sem criptografia própria. Guarde e faça backup com os mesmos cuidados do procedimento original.
+4. IA: Ollama e modelo NÃO acompanham estes pacotes. Para que o trecho enviado à IA não saia do computador, configure o Ollama em modo somente local, use um modelo baixado e verifique o funcionamento com a internet desconectada. O aplicativo chama 127.0.0.1:11434, porém não controla toda a configuração do Ollama já em execução.
+
+SE VOCÊ JÁ USOU A VERSÃO ANTERIOR
+Extraia esta versão em uma pasta nova. Para levar casos anteriores, primeiro feche os dois programas e faça uma cópia de segurança protegida da pasta dados da versão antiga. Depois copie a pasta dados inteira para a pasta raiz da versão nova. Não apague a versão antiga até confirmar que os casos e fontes foram abertos corretamente. Os arquivos originais e imagens permanecem sigilosos.
+
+WINDOWS — INICIAR (PACOTE CORRIGIDO COM PYTHON INCLUÍDO)
+1. Extraia completamente o ZIP. Abra a pasta extraída IA_Bancaria_Windows.
+2. Dê dois cliques em INICIAR_WINDOWS.bat. O nome pode aparecer como INICIAR_WINDOWS.
+3. Mantenha a janela preta aberta. O navegador deve abrir a tela da aplicação; se não abrir sozinho, copie o endereço exibido no terminal.
+4. Não é necessário instalar Python nem configurar PATH: a pasta runtime_windows já contém o pacote portátil oficial do Python 3.14.10 para Windows de 64 bits, cuja integridade foi conferida com o SHA-256 publicado pelo fornecedor.
+5. Se houver outra mensagem de erro, abra VERIFICAR_WINDOWS.bat e envie o resultado exibido. Essa verificação não lê arquivos dos casos.
+6. O Ollama é configurado separadamente; ele não é necessário para abrir a interface, importar arquivos e usar filtros e cálculos.
+A execução final ainda precisa ser verificada no Windows da unidade; este ambiente de desenvolvimento executa Linux.
+
+LINUX — INICIAR SEM INSTALAÇÃO DA APLICAÇÃO
+O pacote Linux inclui o runtime Python para Linux x86_64. A máquina precisa ter navegador e bibliotecas básicas compatíveis. Não foi validado em todas as distribuições, no ARM nem no computador da delegacia.
+1. Extraia TODO o ZIP, por exemplo na pasta IA_BANCARIA_LINUX da área de trabalho.
+2. Abra o terminal dentro dessa pasta. Se não souber como, na interface gráfica abra a pasta e procure "Abrir no terminal".
+3. Execute:
+   chmod +x INICIAR_LINUX.sh
+   ./INICIAR_LINUX.sh
+4. Mantenha o terminal aberto. Se o navegador não abrir, copie o endereço exibido para o navegador. Não compartilhe o endereço, pois ele contém a chave da sessão.
+5. Para encerrar, volte ao terminal e pressione Ctrl+C.
+Importante: Ollama e modelo de IA são componentes separados e não acompanham o pacote. Assim, filtros e cálculos funcionam sem instalação; perguntas em linguagem natural exigem um Ollama local já disponível ou sua preparação separada.
+
+LINUX — PREPARAR O OLLAMA EM UMA PASTA, SEM INSTALAÇÃO DE SISTEMA (OPCIONAL)
+O pacote Linux da aplicação não inclui Ollama nem modelos. Os passos abaixo usam o pacote oficial extraído em uma pasta; podem requerer suporte a arquivos .tar.zst e bibliotecas do Linux. Não foram testados no computador da delegacia.
+1. Acesse https://ollama.com/download/ollama-linux-amd64.tar.zst e baixe o arquivo oficial em um computador autorizado com internet.
+2. Dentro da pasta da aplicação, crie uma pasta chamada ollama. Extraia ali o conteúdo do arquivo baixado; ao final deve existir ollama/bin/ollama. Conforme o sistema, pode ser possível usar o gerenciador de arquivos ou o terminal: tar --zstd -xf ARQUIVO_BAIXADO.tar.zst -C ollama
+3. Abra um terminal dentro da pasta da aplicação e execute: chmod +x INICIAR_OLLAMA_LINUX_PORTATIL.sh
+4. Execute: ./INICIAR_OLLAMA_LINUX_PORTATIL.sh
+   O script configura 127.0.0.1, desativa os recursos de nuvem e guarda os modelos em modelos_ollama dentro da pasta. Mantenha esse terminal aberto. Se já houver outro Ollama ocupando a porta 11434, verifique qual servidor está em execução e sua configuração antes de continuar.
+5. Em outro terminal, estando na mesma pasta e com internet habilitada para o download, execute: ./ollama/bin/ollama pull qwen3:4b-instruct
+6. Depois do download, teste com a internet desconectada. Inicie a aplicação em outro terminal pelo INICIAR_LINUX.sh. Em Perguntar à IA, verifique os modelos e escolha o modelo local.
+A portabilidade de Ollama depende da distribuição e das bibliotecas da máquina; a compatibilidade com GPU e a velocidade precisam ser verificadas no equipamento. Não coloque arquivos de investigação em serviços de nuvem durante a preparação.
+
+PRIMEIRO TESTE
+1. Na tela, crie o caso "Teste fictício".
+2. Abra Importar e selecione exemplos/EXEMPLO_FICTICIO_extrato.csv.
+3. Clique Pré-visualizar. Confira as colunas sugeridas. Marque a confirmação sobre movimentações e clique Confirmar e importar.
+4. Em Pesquisar, os totais esperados são R$ 1.000,00 em créditos e R$ 450,00 em débitos. Há uma linha de R$ 40,00 sem natureza, fora dos totais. O principal destino é PESSOA BETA, com duas linhas e R$ 450,00.
+5. Crie outro caso fictício e importe exemplos/EXEMPLO_FICTICIO_simba_2010.zip. O único lançamento de crédito, R$ 100,00, tem duas origens: R$ 30,00 e R$ 70,00. O total continua R$ 100,00, não R$ 200,00.
+6. A aba Fontes apresenta o SHA-256 e os avisos. Em Pesquisar, clique em Detalhes para ver os dados originais, arquivo e linha.
+
+IMPORTAR PLANILHA OU EXTRATO DETALHADO
+Aceita CSV, TXT delimitado e XLSX com até 50 MB por arquivo. É necessário haver cabeçalho. No XLSX é possível escolher a aba e a linha de cabeçalho. Confira cada correspondência proposta: data, valor, natureza, titular, CPF/CNPJ e origem/destino. Para extratos com colunas separadas, selecione Crédito e Débito e deixe Valor da transação sem coluna.
+O sinal positivo NÃO é considerado crédito por padrão. Se o banco usar sinal positivo para crédito e negativo para débito, marque a confirmação própria. Se houver campo de natureza, confira seus códigos. Valores ambíguos ou naturezas não reconhecidas não entram nos totais.
+O programa trata cada linha importada como um registro. No extrato detalhado SIMBA, verifique se a coluna de valor representa a parcela de cada origem/destino ou o valor integral repetido de um lançamento. Selecionar o valor integral repetido produzirá totais incorretos; verifique com o SIMBA.
+As mesmas transações podem aparecer em arquivos diferentes, ou como débito de uma conta e crédito de outra. O programa só impede que um arquivo de bytes exatamente idênticos seja incluído duas vezes; ele não faz conciliação ou deduplicação entre arquivos diferentes.
+
+IMPORTAR PACOTES DE BANCOS EM ZIP
+Ao selecionar um ZIP, escolha "Pacote bancário ZIP". A ferramenta guarda o ZIP como fonte, calcula o SHA-256 e lista os arquivos. Na aba Fontes, clique em "Ver conteúdo". Para cada PDF ou planilha, clique em "Preparar para importar" e conclua a importação. A listagem NÃO significa que todos os arquivos foram analisados. Dados cadastrais, planilhas de IP, geolocalização e respostas em texto não devem ser classificados como transações financeiras.
+Se o ZIP contiver um único conjunto SIMBA de 2010, use o botão para processá-lo no próprio pacote. Outros PDFs e planilhas continuam disponíveis para importação individual. Alguns bancos fornecem as mesmas transações em abas diferentes; a versão atual não identifica automaticamente essa repetição.
+
+MERCADO PAGO - EXEMPLOS DE ABAS
+As abas PIX recebidos e PIX realizados podem trazer colunas de situação. Mapeie PYN_STATUS ou PAYOUT_STATUS e confira os demais campos. A ferramenta inclui apenas situações que reconhece como concluídas/aprovadas; rejected, refunded, situação vazia e outras situações não reconhecidas ficam fora dos totais, com os dados originais preservados. Valores de estorno informados também exigem revisão e ficam fora dos totais; a ferramenta não abate valores automaticamente. Isso não substitui a conferência do significado de cada status com o banco. Em PIX recebidos escolha natureza fixa CRÉDITO; em PIX realizados escolha DÉBITO somente após conferir a aba. PAYOUT_TYPE pode indicar, por exemplo, saque (atm); não presuma que todo registro é transferência PIX. Não importe a mesma operação das abas movimentos e PIX como se fossem operações distintas.
+
+IMPORTAR SIMBA BRUTO
+Prepare um ZIP com exatamente um EXTRATO.txt e um ORIGEM_DESTINO.txt, e opcionalmente TITULARES.txt, todos da mesma remessa bancária. Para cada banco/remessa use ZIP separado. A versão inicial trata o leiaute anterior da Carta-Circular 3.454/2010: EXTRATO com 14 campos e ORIGEM_DESTINO com 18 campos delimitados por TAB, valores em centavos. Ela relaciona os registros por CODIGO_CHAVE_EXTRATO dentro da mesma remessa. Se as parcelas não fecharem com o valor do lançamento, as parcelas ficam fora dos totais e aparece aviso. Chaves sem correspondente bloqueiam a importação.
+A IN BCB nº 636/2025, com vigência prevista para 01/12/2026, altera o leiaute. O arquivo bruto do novo leiaute NÃO está implementado nem validado nesta versão; use o extrato detalhado em CSV/XLSX e confira. Esta aplicação não substitui o validador oficial do SIMBA.
+
+DIAGRAMA, IMAGENS MARCADAS E RELATÓRIO
+1. Importe um PDF e abra a aba "Marcar evidências". Selecione o PDF e clique "Carregar PDF". Selecione a página, escolha retângulo, círculo ou seta e a cor; desenhe com o mouse. É possível desfazer e limpar as marcações. A captura é da página inteira e a seleção das regiões é feita manualmente.
+2. Informe uma descrição e clique "Salvar imagem marcada no caso". O documento de origem não é modificado. O sistema registra a página, os hashes do original e da imagem e guarda a imagem derivada na pasta do caso.
+3. Em Pesquisar, filtre um único titular identificado e clique "Gerar diagrama". O gráfico mostra até cinco origens e cinco destinos agregados; use "Baixar como PNG" para salvar a figura. As setas mostram a direção dos registros, mas não comprovam que um crédito específico financiou um débito específico.
+4. Na aba Relatório, digite observações e selecione imagens. "Gerar relatório em HTML" produz um rascunho com totais, fontes, diagrama quando possível e as imagens escolhidas. Abra o arquivo e use a opção do navegador Imprimir > Salvar em PDF. O texto de análise não é redigido automaticamente pela IA neste relatório; o analista pode revisar e inserir observações.
+5. Para uma demonstração sem informações reais, abra exemplos/EXEMPLO_RELATORIO_FICTICIO.html no navegador.
+
+PDF E RIF
+PDFs com texto selecionável podem ser importados para leitura de texto e perguntas à IA. O texto pode conter erros; confira as páginas originais. PDFs digitalizados precisam de OCR externo e revisão. Tabelas em PDF não são convertidas automaticamente em lançamentos.
+O painel de RIF fornecido serviu como referência de funcionamento, mas ainda não foi implementada importação estruturada de RIF nem integração de suas comunicações com transações. Um RIF em PDF pode ser consultado apenas como documento textual. Não confunda comunicação com movimentação bancária comprovada.
+
+USAR A IA LOCAL
+1. No Windows onde vocês já usam Ollama, verifique os modelos com: ollama list
+2. Se necessário, e antes de trabalhar com dados sigilosos, baixe um modelo local adequado. Exemplo para teste: ollama pull qwen3:4b-instruct. O download exige internet e alguns gigabytes de espaço; o processamento posterior pode ocorrer sem internet.
+3. Desative os recursos de nuvem no Ollama. Conforme a documentação oficial, inclua "disable_ollama_cloud": true no arquivo de configuração do servidor Ollama, preservando as demais configurações, OU configure OLLAMA_NO_CLOUD=1 ANTES de iniciar o servidor Ollama. Reinicie o servidor e confirme nos logs que a nuvem está desativada. Definir a variável após o servidor já estar aberto não altera a configuração dele.
+4. Abra o aplicativo de análise e, na aba Perguntar à IA, clique Verificar modelos locais. Selecione um modelo local e escreva a pergunta.
+5. Em perguntas sobre movimentos, a IA recebe os totais calculados, até 10 posições por ranking e um trecho limitado de até 150 registros. Na consulta a PDF, recebe parte do texto extraído. A tela informa o alcance enviado; modelos pequenos e limite de contexto podem restringir ainda mais a resposta. A IA pode errar. Confira fonte, página, linha e cálculos.
+6. O arquivo PROMPT_ANALISE_FINANCEIRA.txt pode ser editado. Não inclua instruções que afastem a conferência ou permitam enviar dados a serviços externos.
+Referências: https://docs.ollama.com/faq e https://docs.ollama.com/api/introduction
+
+CURSOR E DESENVOLVIMENTO
+O código está na pasta financeira. Leia PROMPT_PARA_CURSOR.txt. Ferramentas de edição podem enviar código e conteúdo a serviços externos; mantenha a pasta dados fora do Cursor e use apenas arquivos fictícios, salvo se a configuração e as regras da unidade autorizarem expressamente outro procedimento. Nunca inclua dados reais nos exemplos ou testes.
+
+LIMITAÇÕES DESTA VERSÃO
+Não implementa OCR, importação automática de PDF como tabela, arquivos XLS antigos ou OFX, RIF estruturado, grafo de várias etapas, conciliação de movimentações entre bancos, leitura integral de todas as variantes de extratos, tampouco o novo leiaute bruto de 2026. A tabela da interface mostra até 500 linhas; a exportação CSV vai até 10.000 linhas. O relatório HTML é um rascunho para revisão, não um laudo, e não traz todas as transações. A identificação e a marcação das evidências são manuais. A interface de marcação e a impressão ainda precisam ser testadas no navegador e no computador da unidade.

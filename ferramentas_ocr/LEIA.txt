@@ -1,0 +1,19 @@
+OCR LOCAL (OPCIONAL) - não vai para o GitHub
+
+Necessário apenas para PDFs digitalizados (imagem sem texto selecionável) e para exibir a imagem
+das páginas na marcação de evidências. Tudo roda no computador; nada é enviado à rede.
+
+Componentes:
+  - Tesseract OCR com o idioma português (por.traineddata)
+  - Poppler (programa pdftoppm)
+
+Windows (portátil, sem instalar):
+  ferramentas_ocr\tesseract\tesseract.exe        (+ pasta tessdata com por.traineddata)
+  ferramentas_ocr\poppler\Library\bin\pdftoppm.exe   (ou ferramentas_ocr\poppler\bin\pdftoppm.exe)
+  Obtenha os pacotes das fontes oficiais do projeto Tesseract e de uma distribuição do Poppler
+  para Windows, em computador autorizado, e confira a integridade antes de copiar.
+
+Linux: sudo apt install tesseract-ocr tesseract-ocr-por poppler-utils
+
+Confira em VERIFICAR_WINDOWS.bat se aparece "OCR local: disponível".
+O resultado do OCR pode conter erros: revise cada página (aba PDF / OCR) antes de usar.

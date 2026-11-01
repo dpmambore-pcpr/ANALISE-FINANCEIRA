@@ -91,7 +91,7 @@ def _where(caso_id, filtros, exceto=None):
 def descrever_filtros(b, filtros):
     out = []
     f = filtros or {}
-    for chave, (rotulo, *_r) in FACETA.items():
+    for chave, (_, rotulo, *_r) in FACETA.items():
         if f.get(chave):
             vals = f[chave]
             if chave == "fonte":

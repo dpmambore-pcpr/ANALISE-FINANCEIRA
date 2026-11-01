@@ -5,6 +5,14 @@ import struct
 import zipfile
 from xml.sax.saxutils import escape
 
+
+def _escrever(z, nome, dados):
+    """Entrada de ZIP com data fixa: o mesmo conteúdo gera sempre os mesmos bytes."""
+    info = zipfile.ZipInfo(nome, date_time=(1980, 1, 1, 0, 0, 0))
+    info.compress_type = zipfile.ZIP_DEFLATED
+    z.writestr(info, dados)
+
+
 # ---------------------------------------------------------------- PDF
 
 _LARG_HELV = {}
@@ -251,7 +259,7 @@ class DOCX:
     def gerar(self):
         out = io.BytesIO()
         with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-            z.writestr("[Content_Types].xml",
+            _escrever(z, "[Content_Types].xml",
                        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
                        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
@@ -259,7 +267,7 @@ class DOCX:
                        '<Default Extension="png" ContentType="image/png"/>'
                        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
                        '</Types>')
-            z.writestr("_rels/.rels",
+            _escrever(z, "_rels/.rels",
                        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
                        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
@@ -267,12 +275,12 @@ class DOCX:
             rels = "".join(
                 '<Relationship Id="rIdImg%d" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/%s"/>'
                 % (i + 1, nome) for i, (nome, _) in enumerate(self.midias))
-            z.writestr("word/_rels/document.xml.rels",
+            _escrever(z, "word/_rels/document.xml.rels",
                        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">%s</Relationships>' % rels)
             for nome, dados in self.midias:
-                z.writestr("word/media/" + nome, dados)
-            z.writestr("word/document.xml",
+                _escrever(z, "word/media/" + nome, dados)
+            _escrever(z, "word/document.xml",
                        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document %s><w:body>%s'
                        '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="709" w:footer="709" w:gutter="0"/></w:sectPr>'
                        '</w:body></w:document>' % (_W, "".join(self.corpo)))
@@ -294,7 +302,7 @@ def gerar_xlsx(abas):
     """abas: lista de (nome, linhas). Textos como inlineStr, int/float como número."""
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("[Content_Types].xml",
+        _escrever(z, "[Content_Types].xml",
                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
                    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
@@ -302,17 +310,17 @@ def gerar_xlsx(abas):
                    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
                    + "".join('<Override PartName="/xl/worksheets/sheet%d.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' % (i + 1) for i in range(len(abas)))
                    + '</Types>')
-        z.writestr("_rels/.rels",
+        _escrever(z, "_rels/.rels",
                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
                    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
                    '</Relationships>')
-        z.writestr("xl/workbook.xml",
+        _escrever(z, "xl/workbook.xml",
                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'
                    + "".join('<sheet name="%s" sheetId="%d" r:id="rId%d"/>' % (escape(n, {'"': "&quot;"}), i + 1, i + 1) for i, (n, _) in enumerate(abas))
                    + '</sheets></workbook>')
-        z.writestr("xl/_rels/workbook.xml.rels",
+        _escrever(z, "xl/_rels/workbook.xml.rels",
                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
                    + "".join('<Relationship Id="rId%d" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet%d.xml"/>' % (i + 1, i + 1) for i in range(len(abas)))
@@ -331,5 +339,5 @@ def gerar_xlsx(abas):
                         xml.append('<c r="%s" t="inlineStr"><is><t xml:space="preserve">%s</t></is></c>' % (ref, escape(str(v))))
                 xml.append("</row>")
             xml.append("</sheetData></worksheet>")
-            z.writestr("xl/worksheets/sheet%d.xml" % (i + 1), "".join(xml))
+            _escrever(z, "xl/worksheets/sheet%d.xml" % (i + 1), "".join(xml))
     return out.getvalue()

@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Análise Bancária Local</title>
+<link rel="stylesheet" href="estilo.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="marca"><b>Análise Bancária Local</b> <span id="versao"></span><br><small>Delegacia de Polícia de Mamborê - uso local, sem nuvem</small></div>
+  <div class="topo-dir">
+    <label>Usuário <input id="usuario" placeholder="seu nome" size="14"></label>
+    <label>Caso <select id="caso"></select></label>
+  </div>
+</header>
+<nav id="abas">
+  <button data-aba="casos">Casos</button>
+  <button data-aba="importar">Importar</button>
+  <button data-aba="fontes">Fontes</button>
+  <button data-aba="pesquisar">Pesquisar</button>
+  <button data-aba="geral">Pesquisa geral</button>
+  <button data-aba="acessos">IP / Geolocalização</button>
+  <button data-aba="grafo">Grafo e repasses</button>
+  <button data-aba="duplicatas">Duplicatas</button>
+  <button data-aba="rif">RIF</button>
+  <button data-aba="documentos">PDF / OCR</button>
+  <button data-aba="evidencias">Marcar evidências</button>
+  <button data-aba="relatorio">Relatório</button>
+  <button data-aba="ia">Perguntar à IA</button>
+  <button data-aba="conhecimento">Aprimorar a IA</button>
+  <button data-aba="auditoria">Auditoria</button>
+</nav>
+<main>
+
+<section id="aba-casos" class="aba">
+  <h2>Casos</h2>
+  <div class="cartao">
+    <h3>Novo caso</h3>
+    <input id="novo-caso-nome" placeholder="Nome do caso (ex.: Teste fictício)" size="40">
+    <input id="novo-caso-desc" placeholder="Descrição (opcional)" size="40">
+    <button id="btn-criar-caso" class="primario">Criar caso</button>
+  </div>
+  <div id="lista-casos"></div>
+  <div class="cartao" id="cartao-perm">
+    <h3>Permissões do caso selecionado</h3>
+    <p class="nota">Papéis: leitor (consulta), analista (importa e marca), revisor (decide duplicatas e desfaz importações), administrador. A identificação é declarada; proteja o computador com as credenciais da unidade.</p>
+    <input id="perm-usuario" placeholder="usuário"> <select id="perm-papel"><option>leitor</option><option>analista</option><option>revisor</option><option>administrador</option><option value="remover">remover</option></select>
+    <button id="btn-perm">Aplicar</button>
+    <div id="perm-lista"></div>
+  </div>
+  <div class="cartao">
+    <h3>Remessas (uma por banco/resposta recebida)</h3>
+    <input id="rem-rotulo" placeholder="Rótulo (ex.: Banco X - ofício 12/2026)" size="40"> <input id="rem-inst" placeholder="Instituição">
+    <button id="btn-remessa">Criar remessa</button>
+    <div id="rem-lista"></div>
+  </div>
+</section>
+
+<section id="aba-importar" class="aba">
+  <h2>Importar arquivo</h2>
+  <div class="cartao">
+    <p>Aceita CSV/TXT delimitado, XLSX, ZIP (pacotes bancários, SIMBA bruto, RIF) e PDF. O original é guardado sem alteração, com SHA-256.</p>
+    <label>Remessa <select id="imp-remessa"><option value="">(sem remessa)</option></select></label>
+    <input type="file" id="imp-arquivo">
+    <button id="btn-enviar" class="primario">Enviar e pré-visualizar</button>
+    <div id="imp-progresso"></div>
+  </div>
+  <div id="imp-previa"></div>
+  <div id="imp-relatorio"></div>
+</section>
+
+<section id="aba-fontes" class="aba">
+  <h2>Fontes do caso</h2>
+  <button id="btn-integridade">Conferir SHA-256 dos originais</button>
+  <div id="fontes-lista"></div>
+</section>
+
+<section id="aba-pesquisar" class="aba">
+  <h2>Pesquisar movimentações</h2>
+  <p class="nota">Clique em cada filtro para ver <b>todas</b> as opções encontradas nos documentos e marque as desejadas. Dentro de um filtro vale "qualquer um"; entre filtros vale "todos".</p>
+  <div id="facetas" class="facetas"></div>
+  <div class="linha-filtros">
+    <label>De <input type="date" id="f-data-ini"></label>
+    <label>Até <input type="date" id="f-data-fim"></label>
+    <label>Valor mín. <input id="f-vmin" size="9" placeholder="0,00"></label>
+    <label>Valor máx. <input id="f-vmax" size="9"></label>
+    <label>Texto <input id="f-texto" size="16" placeholder="nome, CPF, histórico"></label>
+    <button id="btn-pesquisar" class="primario">Pesquisar</button>
+    <button id="btn-limpar">Limpar filtros</button>
+    <button id="btn-exportar">Exportar CSV</button>
+  </div>
+  <div id="filtros-ativos" class="chips"></div>
+  <div id="totais"></div>
+  <div id="resultados"></div>
+</section>
+
+<section id="aba-geral" class="aba">
+  <h2>Pesquisa geral - todas as informações dos documentos</h2>
+  <p class="nota">Reúne CPF, CNPJ, nomes, bancos, contas, chaves PIX, IDs PIX, e-mails, telefones, IPs, coordenadas, cidades, dispositivos e datas de extratos, cadastros, registros de acesso, RIF e texto de PDF. Um mesmo valor em fontes diferentes é coincidência a verificar, não prova de identidade.</p>
+  <input id="g-busca" placeholder="filtrar listas (opcional)" size="30"> <button id="btn-geral" class="primario">Carregar listas</button>
+  <div id="g-facetas" class="facetas"></div>
+  <button id="btn-ocorrencias">Mostrar onde aparecem os valores marcados</button>
+  <div id="g-ocorrencias"></div>
+</section>
+
+<section id="aba-acessos" class="aba">
+  <h2>Registros de acesso, IP e geolocalização</h2>
+  <p class="nota">Fuso horário e grafia originais preservados. Coordenadas exibidas em gráfico simples, sem mapa da internet. Geolocalização por IP é aproximada.</p>
+  <div id="a-facetas" class="facetas"></div>
+  <button id="btn-acessos" class="primario">Aplicar filtros</button>
+  <div id="a-mapa"></div>
+  <div id="a-tabela"></div>
+</section>
+
+<section id="aba-grafo" class="aba">
+  <h2>Grafo de relações</h2>
+  <p class="aviso">As setas mostram a direção dos registros. Não comprovam que um crédito específico financiou um débito específico.</p>
+  <button id="btn-grafo" class="primario">Gerar grafo com os filtros da Pesquisa</button> <button id="btn-grafo-png">Baixar PNG</button>
+  <div id="grafo-area"></div>
+  <h2>Sequências de repasses (possibilidades)</h2>
+  <div class="cartao">
+    <label>Início: CPF/CNPJ do titular <input id="s-inicio" size="20"></label>
+    <label>Janela (dias) <input id="s-janela" value="3" size="3"></label>
+    <label>Tolerância de valor (%) <input id="s-tol" value="0" size="3"></label>
+    <label>Profundidade <input id="s-prof" value="3" size="2"></label>
+    <label><input type="checkbox" id="s-nome"> aceitar coincidência só de nome (hipótese)</label>
+    <button id="btn-seq" class="primario">Procurar</button>
+  </div>
+  <div id="seq-res"></div>
+</section>
+
+<section id="aba-duplicatas" class="aba">
+  <h2>Duplicatas prováveis - revisão humana</h2>
+  <p class="nota">Nada é descartado automaticamente. "Mesma operação" retira o segundo registro dos totais (exige papel revisor e justificativa). Débito e crédito em contas diferentes são os dois lados de uma transferência: ambos permanecem nas respectivas contas.</p>
+  <select id="dup-estado"><option value="">todas</option><option value="pendente" selected>pendentes</option><option value="mesma_operacao">mesma operação</option><option value="distintas">distintas</option><option value="dois_lados_confirmado">dois lados</option></select>
+  <button id="btn-dups">Listar</button>
+  <div id="dups"></div>
+</section>
+
+<section id="aba-rif" class="aba">
+  <h2>RIF - comunicações, envolvidos e ocorrências</h2>
+  <p class="aviso">RIF é comunicação de inteligência com sigilo. Não é extrato, não entra nos totais e não prova movimentação nem ilicitude.</p>
+  <button id="btn-rif">Atualizar</button>
+  <div id="rif-area"></div>
+</section>
+
+<section id="aba-documentos" class="aba">
+  <h2>PDF: texto, OCR local e revisão por página</h2>
+  <div id="ocr-status" class="nota"></div>
+  <label>Documento <select id="doc-fonte"></select></label> <button id="btn-doc">Abrir</button> <button id="btn-doc-original">Ver original</button>
+  <div id="doc-area"></div>
+</section>
+
+<section id="aba-evidencias" class="aba">
+  <h2>Marcar evidências</h2>
+  <p class="nota">Carregue a imagem da página (OCR/Poppler instalado), uma imagem importada como fonte, ou cole uma captura de tela (Ctrl+V) feita do PDF original. O original nunca é alterado.</p>
+  <div class="cartao">
+    <label>Fonte <select id="ev-fonte"><option value="">(captura colada / sem fonte)</option></select></label>
+    <label>Página <input id="ev-pagina" size="3" value="1"></label>
+    <button id="btn-ev-carregar">Carregar página/imagem</button>
+    <input type="file" id="ev-arquivo" accept="image/*">
+    <span class="sep"></span>
+    <select id="ev-forma"><option value="ret">retângulo</option><option value="circ">círculo</option><option value="seta">seta</option></select>
+    <input type="color" id="ev-cor" value="#e00000">
+    <button id="btn-ev-desfazer">Desfazer</button> <button id="btn-ev-limpar">Limpar</button>
+  </div>
+  <canvas id="ev-canvas" width="900" height="300"></canvas>
+  <div class="cartao"><input id="ev-desc" placeholder="Descrição da marcação" size="60"> <button id="btn-ev-salvar" class="primario">Salvar imagem marcada no caso</button></div>
+  <div id="ev-lista"></div>
+</section>
+
+<section id="aba-relatorio" class="aba">
+  <h2>Relatório (rascunho com fontes e memória de cálculo)</h2>
+  <p class="nota">Usa os filtros atuais da aba Pesquisar. Contém totais, rankings, fontes com SHA-256, memória de cálculo com arquivo/linha de cada lançamento e ressalvas.</p>
+  <textarea id="rel-obs" rows="6" placeholder="Observações do analista"></textarea>
+  <div id="rel-imagens"></div>
+  <button class="primario" data-formato="docx">Gerar DOCX</button> <button data-formato="pdf">Gerar PDF</button> <button data-formato="html">Gerar HTML</button>
+</section>
+
+<section id="aba-ia" class="aba">
+  <h2>Perguntar à IA local (Ollama em 127.0.0.1)</h2>
+  <p class="aviso">A IA recebe os números calculados pelo programa, os filtros e uma amostra limitada. Pode errar: confira fonte, página, linha e cálculos. Inicie o Ollama com a nuvem desativada.</p>
+  <button id="btn-modelos">Verificar modelos locais</button> <select id="ia-modelo"></select> <span id="ia-info" class="nota"></span>
+  <div><label><input type="radio" name="ia-alvo" value="mov" checked> Movimentações (filtros da Pesquisa)</label>
+       <label><input type="radio" name="ia-alvo" value="doc"> Documento PDF <select id="ia-doc"></select></label>
+       <label><input type="checkbox" id="ia-conh" checked> usar base de conhecimento local</label></div>
+  <textarea id="ia-pergunta" rows="4" placeholder="Pergunta"></textarea>
+  <button id="btn-ia" class="primario">Perguntar</button>
+  <div id="ia-resposta"></div>
+</section>
+
+<section id="aba-conhecimento" class="aba">
+  <h2>Aprimorar a IA com novos documentos (100% local)</h2>
+  <p class="nota">O modelo não é re-treinado. A cada pergunta, o programa busca nesta base os trechos mais relevantes e os envia junto ao Ollama local. Inclua manuais, leiautes, normas, modelos de relatório e exemplos <b>anonimizados</b>. Documentos marcados "deste caso" só valem para o caso selecionado.</p>
+  <div class="cartao">
+    <label>Categoria <select id="k-cat"><option>referencia</option><option>norma</option><option>leiaute</option><option>modelo_relatorio</option><option>glossario</option><option>exemplo_anonimizado</option></select></label>
+    <label><input type="checkbox" id="k-caso"> somente deste caso</label>
+    <input type="file" id="k-arquivo" accept=".txt,.md,.csv,.pdf"> <button id="btn-k-enviar" class="primario">Adicionar à base</button>
+  </div>
+  <div id="k-lista"></div>
+  <h3>Respostas revisadas (exemplos para a IA)</h3>
+  <div class="cartao">
+    <textarea id="k-pergunta" rows="2" placeholder="Pergunta"></textarea>
+    <textarea id="k-resposta" rows="4" placeholder="Resposta revisada pelo analista (como a IA deveria responder)"></textarea>
+    <button id="btn-k-corr">Salvar resposta revisada</button>
+  </div>
+  <div id="k-corr"></div>
+  <h3>Modelo personalizado no Ollama (opcional)</h3>
+  <p class="nota">Gera um Modelfile com as regras do PROMPT_ANALISE_FINANCEIRA.txt. No terminal: <code>ollama create analise-pcpr -f Modelfile</code>. Continua local.</p>
+  <input id="k-base" value="qwen3:4b-instruct"> <button id="btn-k-modelfile">Baixar Modelfile</button>
+  <h3>Perfis de leiaute aprendidos na importação</h3>
+  <div id="k-perfis"></div>
+</section>
+
+<section id="aba-auditoria" class="aba">
+  <h2>Trilha de auditoria do caso</h2>
+  <button id="btn-auditoria">Atualizar</button>
+  <div id="auditoria"></div>
+</section>
+</main>
+<div id="modal" class="modal oculto"><div class="modal-conteudo"><button id="modal-fechar" class="fechar">×</button><div id="modal-corpo"></div></div></div>
+</body>
+</html>

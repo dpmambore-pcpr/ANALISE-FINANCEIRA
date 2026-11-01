@@ -262,36 +262,57 @@ class Importador:
         con = self.b.con
         ini, fim = min(self.ids_lanc), max(self.ids_lanc)
         n = 0
+        # Cada registro é comparado só com o anterior equivalente mais próximo, para não gerar
+        # pares em quantidade quadrática quando há muitas linhas iguais (ex.: tarifas).
         regras = [
             ("conteudo_identico",
-             "SELECT a.id AS b_id, o.id AS a_id FROM lancamentos a JOIN lancamentos o "
-             "ON o.caso_id=a.caso_id AND o.hash_conteudo=a.hash_conteudo AND o.id < a.id "
-             "WHERE a.importacao_id=? AND a.id BETWEEN ? AND ? AND a.situacao!='rejeitado' AND o.situacao!='rejeitado' LIMIT 50000",
+             "SELECT a.id AS b_id, (SELECT MAX(o.id) FROM lancamentos o WHERE o.caso_id=a.caso_id "
+             "AND o.hash_conteudo=a.hash_conteudo AND o.id < a.id AND o.situacao!='rejeitado') AS a_id "
+             "FROM lancamentos a WHERE a.importacao_id=? AND a.id BETWEEN ? AND ? AND a.situacao!='rejeitado'",
              "mesmos data, valor, natureza, conta, documento, descrição e contrapartes"),
-            ("mesma_conta_data_valor",
-             "SELECT a.id AS b_id, o.id AS a_id FROM lancamentos a JOIN lancamentos o "
-             "ON o.caso_id=a.caso_id AND o.id < a.id AND o.data=a.data AND o.valor_centavos=a.valor_centavos "
-             "AND o.natureza=a.natureza AND o.hash_conteudo!=a.hash_conteudo "
-             "AND COALESCE(o.conta,'')=COALESCE(a.conta,'') AND COALESCE(o.titular_doc,'')=COALESCE(a.titular_doc,'') "
-             "AND (o.fonte_id!=a.fonte_id OR COALESCE(o.local,'')!=COALESCE(a.local,'')) "
-             "WHERE a.importacao_id=? AND a.id BETWEEN ? AND ? AND a.situacao='aceito' AND o.situacao='aceito' LIMIT 50000",
-             "mesma conta, data, valor e natureza em arquivo ou aba diferente (possível repetição entre abas/arquivos)"),
             ("dois_lados",
              "SELECT DISTINCT a.id AS b_id, o.id AS a_id FROM lancamentos a "
-             "JOIN partes pa ON pa.lancamento_id=a.id "
-             "JOIN lancamentos o ON o.caso_id=a.caso_id AND o.id!=a.id AND o.data=a.data AND o.valor_centavos=a.valor_centavos "
-             "AND o.natureza!=a.natureza AND o.titular_doc IS NOT NULL AND o.titular_doc!='' "
-             "AND pa.doc IS NOT NULL AND pa.doc!='' AND replace(replace(replace(o.titular_doc,'.',''),'-',''),'/','')="
-             "replace(replace(replace(pa.doc,'.',''),'-',''),'/','') "
-             "WHERE a.importacao_id=? AND a.id BETWEEN ? AND ? AND a.situacao='aceito' AND o.situacao='aceito' LIMIT 50000",
+             "JOIN partes pa ON pa.lancamento_id=a.id AND pa.doc_norm IS NOT NULL "
+             "JOIN lancamentos o INDEXED BY ix_lanc_tdoc2 ON o.caso_id=a.caso_id AND o.titular_doc_norm=pa.doc_norm AND o.id!=a.id "
+             "AND o.data=a.data AND o.valor_centavos=a.valor_centavos AND o.natureza!=a.natureza AND o.situacao='aceito' "
+             "WHERE a.importacao_id=? AND a.id BETWEEN ? AND ? AND a.situacao='aceito' LIMIT 200000",
              "débito de uma conta e crédito de outra com mesma data e valor, contraparte = titular da outra conta"),
         ]
         for criterio, sql, detalhe in regras:
             for r in con.execute(sql, (self.imp_id, ini, fim)).fetchall():
+                if r["a_id"] is None:
+                    continue
                 a, b_ = sorted((r["a_id"], r["b_id"]))
                 cur = con.execute("INSERT OR IGNORE INTO duplicatas(caso_id, lanc_a, lanc_b, criterio, detalhe) "
                                   "VALUES (?,?,?,?,?)", (self.caso_id, a, b_, criterio, detalhe))
                 n += cur.rowcount
+        n += self._mesma_conta_outro_arquivo()
+        return n
+
+    def _mesma_conta_outro_arquivo(self):
+        """Mesma conta, data, valor e natureza em outro arquivo/aba: pareia com o registro mais
+        recente de cada outro arquivo/aba (custo linear, sem pares quadráticos)."""
+        con = self.b.con
+        chaves = con.execute("SELECT DISTINCT data, valor_centavos, natureza FROM lancamentos WHERE importacao_id=? "
+                             "AND situacao='aceito' AND data IS NOT NULL", (self.imp_id,)).fetchall()
+        n = 0
+        detalhe = "mesma conta, data, valor e natureza em arquivo ou aba diferente (possível repetição entre abas/arquivos)"
+        for k in chaves:
+            linhas = con.execute("SELECT id, importacao_id, hash_conteudo, fonte_id, local, conta, titular_doc_norm FROM lancamentos "
+                                 "WHERE caso_id=? AND data=? AND valor_centavos=? AND natureza=? AND situacao='aceito' ORDER BY id",
+                                 (self.caso_id, k["data"], k["valor_centavos"], k["natureza"])).fetchall()
+            ultimo = {}
+            for r in linhas:
+                conta = (r["conta"] or "", r["titular_doc_norm"] or "")
+                grupo = (r["fonte_id"], r["local"] or "")
+                if r["importacao_id"] == self.imp_id:
+                    cands = [u for g, u in ultimo.get(conta, {}).items() if g != grupo and u["hash_conteudo"] != r["hash_conteudo"]]
+                    if cands:
+                        o = max(cands, key=lambda x: x["id"])
+                        cur = con.execute("INSERT OR IGNORE INTO duplicatas(caso_id, lanc_a, lanc_b, criterio, detalhe) "
+                                          "VALUES (?,?,?,?,?)", (self.caso_id, o["id"], r["id"], "mesma_conta_data_valor", detalhe))
+                        n += cur.rowcount
+                ultimo.setdefault(conta, {})[grupo] = r
         return n
 
     def finalizar(self, controle=None):

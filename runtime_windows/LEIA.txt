@@ -1,0 +1,16 @@
+PYTHON PORTÁTIL PARA WINDOWS (não vai para o GitHub)
+
+Opção 1 - já tenho a versão anterior (pasta IA_Bancaria_Windows):
+  copie a pasta runtime_windows dela para cá. Deve existir runtime_windows\python.exe.
+
+Opção 2 - baixar do site oficial em computador autorizado:
+  1. Acesse https://www.python.org/downloads/windows/ e baixe "Windows embeddable package (64-bit)"
+     da versão 3.14.x (ex.: python-3.14.10-embed-amd64.zip).
+  2. Confira o SHA-256 do arquivo com o publicado na página da versão.
+     No PowerShell: Get-FileHash .\python-3.14.10-embed-amd64.zip -Algorithm SHA256
+  3. Extraia o conteúdo nesta pasta (runtime_windows\python.exe deve existir).
+
+Opção 3 - Python instalado no Windows (3.9 ou superior): os scripts usam "py -3" ou "python" se
+  esta pasta estiver vazia.
+
+O programa usa apenas a biblioteca padrão do Python; não é preciso instalar pacotes.

@@ -59,7 +59,8 @@ CREATE TABLE IF NOT EXISTS lancamentos (
   bruto_json TEXT, hash_conteudo TEXT
 );
 CREATE INDEX IF NOT EXISTS ix_lanc_caso ON lancamentos(caso_id, situacao, natureza);
-CREATE INDEX IF NOT EXISTS ix_lanc_data ON lancamentos(caso_id, data);
+CREATE INDEX IF NOT EXISTS ix_lanc_data ON lancamentos(caso_id, data, valor_centavos);
+CREATE INDEX IF NOT EXISTS ix_lanc_imp ON lancamentos(importacao_id);
 CREATE INDEX IF NOT EXISTS ix_lanc_hash ON lancamentos(caso_id, hash_conteudo);
 CREATE INDEX IF NOT EXISTS ix_lanc_chave ON lancamentos(fonte_id, chave_local);
 
@@ -74,7 +75,7 @@ CREATE TABLE IF NOT EXISTS partes (
 );
 CREATE INDEX IF NOT EXISTS ix_partes_lanc ON partes(lancamento_id);
 CREATE INDEX IF NOT EXISTS ix_partes_caso ON partes(caso_id, doc_norm);
-CREATE INDEX IF NOT EXISTS ix_lanc_tdoc ON lancamentos(caso_id, titular_doc_norm);
+CREATE INDEX IF NOT EXISTS ix_lanc_tdoc2 ON lancamentos(caso_id, titular_doc_norm, data, valor_centavos);
 
 CREATE TABLE IF NOT EXISTS titulares (
   id INTEGER PRIMARY KEY, caso_id INTEGER NOT NULL, importacao_id INTEGER, fonte_id INTEGER NOT NULL,
