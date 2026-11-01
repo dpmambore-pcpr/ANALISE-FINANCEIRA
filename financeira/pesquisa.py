@@ -100,6 +100,8 @@ def descrever_filtros(b, filtros):
                     fo = b.q1("SELECT nome_original FROM fontes WHERE id=?", (int(v),))
                     nomes.append(fo["nome_original"] if fo else v)
                 vals = nomes
+            elif chave in ("pessoa_doc", "titular_doc", "cp_doc"):
+                vals = [util.formatar_documento(v) for v in vals]
             out.append("%s: %s" % (rotulo, "; ".join(str(v) for v in vals)))
     if f.get("data_ini") or f.get("data_fim"):
         out.append("Período: %s a %s" % (f.get("data_ini") or "início", f.get("data_fim") or "fim"))
