@@ -6,6 +6,8 @@ name: instalador
 on:
   push:
     tags: ["v*"]
+    branches: ["cursor/analise-bancaria-v3-ab1b"]
+    paths: ["instalador/**", ".github/workflows/instalador.yml", "financeira/__init__.py"]
   workflow_dispatch:
 
 permissions:
