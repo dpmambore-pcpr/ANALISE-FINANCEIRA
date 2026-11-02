@@ -1,0 +1,23 @@
+# NUNCA versionar dados de casos: o repositório é público.
+dados/
+dados_*/
+*.sqlite
+*.sqlite3
+*.db
+backup_versoes/
+relatorios_gerados/
+diagnostico_windows.txt
+
+# Componentes locais grandes (o Python portátil do Windows em runtime_windows É versionado)
+runtime_linux/
+ollama/
+modelos_ollama/
+ferramentas_ocr/*
+!ferramentas_ocr/LEIA.txt
+dist/
+cache_downloads/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+*.log

@@ -1,0 +1,33 @@
+name: testes
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+        python: ["3.9", "3.12", "3.14"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Verificar e testar (dados fictícios)
+        run: python verificar.py
+      - name: Exemplos fictícios atualizados
+        if: runner.os == 'Linux'
+        run: |
+          python ferramentas/gerar_exemplos.py
+          git diff --exit-code -- exemplos
+      - name: Nenhum dado de caso no repositório
+        shell: bash
+        run: |
+          if git ls-files | grep -E '^dados/|\.sqlite3?$|\.db$'; then echo "Arquivo proibido versionado"; exit 1; fi

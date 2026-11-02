@@ -1,0 +1,43 @@
+name: instalador
+
+# Gera o instalador do Windows (AnaliseBancariaLocal-Instalador-<versao>.exe) com Inno Setup.
+# Rode manualmente em Actions > instalador > Run workflow (baixe em "Artifacts"),
+# ou publique uma tag v* para anexá-lo à página Releases.
+on:
+  push:
+    tags: ["v*"]
+    branches: ["cursor/analise-bancaria-v3-ab1b"]
+    paths: ["instalador/**", ".github/workflows/instalador.yml", "financeira/__init__.py"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  instalador:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Testes
+        shell: bash
+        run: python verificar.py
+      - name: Instalar Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+      - name: Compilar
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path financeira/__init__.py -Pattern 'VERSAO = "(.+)"').Matches[0].Groups[1].Value
+          "VERSAO=$v" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DVersao=$v" instalador\AnaliseBancaria.iss
+          Get-FileHash dist\*.exe -Algorithm SHA256 | Format-List
+      - uses: actions/upload-artifact@v4
+        with:
+          name: instalador-windows
+          path: dist/*.exe
+      - name: Anexar à Release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/*.exe --clobber || gh release create "$GITHUB_REF_NAME" dist/*.exe --title "Versão $VERSAO"

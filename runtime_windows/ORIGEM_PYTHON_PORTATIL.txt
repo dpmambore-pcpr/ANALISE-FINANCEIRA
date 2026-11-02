@@ -1,0 +1,5 @@
+Python 3.14.10 - pacote oficial Windows embeddable 64 bits
+Origem: https://www.python.org/ftp/python/3.14.10/python-3.14.10-embed-amd64.zip
+SHA-256 do ZIP original: 90905e64a840557d8c1bc4f5b74db3d7ee85e3ffb217611cac1c7813acea4159
+Pagina oficial: https://www.python.org/downloads/release/python-31410/
+Licenca: runtime_windows/LICENSE.txt
