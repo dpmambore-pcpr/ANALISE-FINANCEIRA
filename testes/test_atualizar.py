@@ -68,6 +68,21 @@ class TestAtualizar(unittest.TestCase):
         self.assertEqual(self.ler("runtime_windows/python.exe"), "SOBRESCREVER")
         self.assertEqual(self.ler("dados/analise_v3.sqlite"), "BANCO")
 
+    def test_verifica_versao_publicada(self):
+        self.mod.baixar = lambda url, timeout=0: b'VERSAO = "2.10.0"\n'
+        r = self.mod.verificar_atualizacao()
+        self.assertTrue(r["ha_nova"])
+        self.assertEqual(r["disponivel"], "2.10.0")
+        self.mod.baixar = lambda url, timeout=0: b'VERSAO = "2.0.0"\n'
+        self.assertFalse(self.mod.verificar_atualizacao()["ha_nova"])
+
+    def test_atualizar_agora(self):
+        self.mod.baixar = lambda url, timeout=0: self.pacote()
+        codigo, texto = self.mod.atualizar_agora(testar=False)
+        self.assertEqual(codigo, 0)
+        self.assertIn("9.9.9", texto)
+        self.assertIn("9.9.9", self.ler("financeira/__init__.py"))
+
     def test_recusa_caminho_suspeito(self):
         with self.assertRaises(IOError):
             self.mod.aplicar(self.pacote({"ANALISE-FINANCEIRA-main/../fora.py": "x"}))

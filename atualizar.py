@@ -23,17 +23,18 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
 
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 CONFIG = os.path.join(RAIZ, "atualizacao.json")
-GERENCIADOS = ["financeira", "ferramentas", "testes", "exemplos", "docs", ".github", "vendor", "licencas"]
+GERENCIADOS = ["financeira", "ferramentas", "testes", "exemplos", "docs", ".github", "vendor", "licencas", "instalador"]
 ARQUIVOS_RAIZ = re.compile(r"^[^/]+\.(py|bat|sh|txt|md|json)$|^\.gitignore$", re.I)
 PROTEGIDOS = {"dados", "runtime_windows", "runtime_linux", "ollama", "modelos_ollama", "ferramentas_ocr", "backup_versoes",
               "configuracao_local.json", "relatorios_gerados"}
-HOSTS = {"codeload.github.com", "github.com", "api.github.com", "objects.githubusercontent.com"}
+HOSTS = {"codeload.github.com", "github.com", "api.github.com", "objects.githubusercontent.com", "raw.githubusercontent.com"}
 
 
 def config():
@@ -61,14 +62,53 @@ class _SoGithub(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def baixar(url):
+def baixar(url, timeout=120):
     u = urllib.parse.urlsplit(url)
     if u.scheme != "https" or u.hostname not in HOSTS:
         raise IOError("Endereço não permitido: %s" % url)
     abridor = urllib.request.build_opener(_SoGithub)
     req = urllib.request.Request(url, headers={"User-Agent": "analise-bancaria-atualizador"})
-    with abridor.open(req, timeout=120) as r:
+    with abridor.open(req, timeout=timeout) as r:
         return r.read()
+
+
+def _tupla(v):
+    return tuple(int(x) for x in re.findall(r"\d+", v or "")) or (0,)
+
+
+def consultar_versao_remota():
+    """Lê só o arquivo financeira/__init__.py do GitHub (poucos bytes; nenhum dado é enviado)."""
+    c = config()
+    url = "https://raw.githubusercontent.com/%s/%s/financeira/__init__.py" % (c["repositorio"], c["ramo"])
+    try:
+        txt = baixar(url, timeout=8).decode("utf-8", "replace")
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            raise IOError("o ramo '%s' do repositório ainda não contém o programa" % c["ramo"])
+        raise
+    m = re.search(r'VERSAO\s*=\s*"([^"]+)"', txt)
+    if not m:
+        raise IOError("Não foi possível ler a versão publicada.")
+    return m.group(1)
+
+
+def verificar_atualizacao():
+    """Compara a versão instalada com a publicada. Não altera nada."""
+    atual = versao_local()
+    nova = consultar_versao_remota()
+    return {"instalada": atual, "disponivel": nova, "ha_nova": _tupla(nova) > _tupla(atual),
+            "repositorio": config()["repositorio"], "ramo": config()["ramo"]}
+
+
+def atualizar_agora(testar=True):
+    """Baixa e aplica a versão publicada. Retorna (código, texto do que foi feito)."""
+    import contextlib
+    c = config()
+    dados = baixar("https://codeload.github.com/%s/zip/refs/heads/%s" % (c["repositorio"], c["ramo"]), timeout=300)
+    saida = io.StringIO()
+    with contextlib.redirect_stdout(saida):
+        codigo = aplicar(dados, testar)
+    return codigo, saida.getvalue()
 
 
 def versao_no_zip(z, prefixo):

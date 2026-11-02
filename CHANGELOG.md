@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## 3.1.0
+- Aviso de nova versão dentro do programa (faixa no topo + botão **Atualizar agora**), com opção de desligar a consulta ao abrir.
+- Instalador do Windows (`instalador/AnaliseBancaria.iss`, gerado pelo fluxo `instalador.yml`) e `INSTALAR_WINDOWS.bat`.
+
 ## Correções de empacotamento
 - O Python portátil do Windows (`runtime_windows`, o mesmo do pacote v2) e o `pypdf` (`vendor/`) agora fazem parte do repositório: o ZIP do GitHub abre sem instalar nada.
 - Os `.bat` só aceitam um Python que realmente funcione (o atalho da Microsoft Store não é mais usado por engano) e explicam o que fazer.

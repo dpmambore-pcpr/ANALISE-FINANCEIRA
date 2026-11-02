@@ -602,10 +602,37 @@ async function carregarAuditoria() {
 }
 $("#btn-auditoria").onclick = () => carregarAuditoria();
 
+// ------------------------------------------------------------------ atualização do programa
+async function verificarAtualizacao(manual) {
+  const b = $("#banner-atu");
+  if (manual) b.innerHTML = '<div class="nota" style="padding:6px 16px">Consultando o GitHub...</div>';
+  let r;
+  try { r = await api("GET", "/api/atualizacao/verificar"); } catch (e) { r = { erro: e.message }; }
+  if (r.erro) { b.innerHTML = manual ? `<div class="aviso">${esc(r.erro)}</div>` : ""; return; }
+  if (!r.ha_nova) { b.innerHTML = manual ? `<div class="ok">Você já está com a versão mais recente (v${esc(r.instalada)}).</div>` : ""; return; }
+  b.innerHTML = `<div class="aviso"><b>Nova versão disponível: v${esc(r.disponivel)}</b> (instalada: v${esc(r.instalada)}). Seus casos e dados não serão alterados; uma cópia da versão atual é guardada em backup_versoes. <button id="btn-atu-aplicar">Atualizar agora</button> <span id="atu-status"></span></div>`;
+  $("#btn-atu-aplicar").onclick = async () => {
+    if (!confirm(`Atualizar de v${r.instalada} para v${r.disponivel}? Seus dados serão preservados.`)) return;
+    $("#btn-atu-aplicar").disabled = true;
+    try {
+      const t = await api("POST", "/api/atualizacao/aplicar", {});
+      const res = await esperarTarefa(t.tarefa, $("#atu-status"));
+      b.innerHTML = res.codigo === 0
+        ? `<div class="ok"><b>Atualizado para v${esc(r.disponivel)}.</b> Feche a janela preta do programa e abra de novo (INICIAR_WINDOWS) para usar a versão nova.</div>`
+        : `<div class="erro">A atualização foi aplicada, mas a verificação automática falhou. A versão anterior está em backup_versoes.<pre>${esc(res.texto)}</pre></div>`;
+    } catch (e) { b.innerHTML = `<div class="erro">Falha ao atualizar: ${esc(e.message)}</div>`; }
+  };
+}
+$("#btn-atu").onclick = () => verificarAtualizacao(true);
+$("#atu-auto").onchange = (ev) => api("POST", "/api/atualizacao/config", { automatica: ev.target.checked }).catch((e) => alert(e.message));
+
 // ------------------------------------------------------------------ início
 (async () => {
   const e = await api("GET", "/api/estado");
   $("#versao").textContent = "v" + e.versao;
+  const cfgAtu = await api("GET", "/api/atualizacao/config");
+  $("#atu-auto").checked = cfgAtu.automatica;
+  if (cfgAtu.automatica) verificarAtualizacao(false);
   if (!usuario()) $("#usuario").focus();
   await carregarCasos();
   abrirAba(localStorage.getItem("aba") || "casos");

@@ -156,6 +156,33 @@ class TestServidor(CasoTeste):
         st, _, _ = self.req("/api/casos/%d/fontes" % self.caso, cab={"X-Usuario": "intruso"})
         self.assertEqual(st, 403)
 
+    def test_aviso_de_atualizacao(self):
+        class Falso:
+            def verificar_atualizacao(self):
+                return {"instalada": "3.1.0", "disponivel": "3.2.0", "ha_nova": True}
+
+        class Offline:
+            def verificar_atualizacao(self):
+                raise OSError("sem rede")
+
+        orig, cfg = servidor._atualizador, servidor.CONFIG_LOCAL
+        servidor.CONFIG_LOCAL = os.path.join(self.tmp, "configuracao_local.json")
+        try:
+            servidor._atualizador = lambda: Falso()
+            st, corpo, _ = self.req("/api/atualizacao/verificar")
+            self.assertTrue(json.loads(corpo)["ha_nova"])
+            servidor._atualizador = lambda: Offline()
+            st, corpo, _ = self.req("/api/atualizacao/verificar")
+            r = json.loads(corpo)
+            self.assertFalse(r["ha_nova"])
+            self.assertIn("erro", r)
+            self.assertTrue(json.loads(self.req("/api/atualizacao/config")[1])["automatica"])
+            self.req("/api/atualizacao/config", {"automatica": False})
+            self.assertFalse(json.loads(self.req("/api/atualizacao/config")[1])["automatica"])
+            self.assertEqual(self.req("/api/atualizacao/aplicar", {}, xrw=False)[0], 403)
+        finally:
+            servidor._atualizador, servidor.CONFIG_LOCAL = orig, cfg
+
 
 if __name__ == "__main__":
     unittest.main()

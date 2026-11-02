@@ -513,6 +513,61 @@ def r_relatorio(h, q, c):
     h.enviar(200, corpo, tipo, {"Content-Disposition": 'attachment; filename="caso_%d_%s"' % (caso, nome)})
 
 
+# ---------------------------------------------------------------- atualização do programa
+
+CONFIG_LOCAL = os.path.join(RAIZ, "configuracao_local.json")
+
+
+def _config_local():
+    try:
+        with open(CONFIG_LOCAL, encoding="utf-8") as f:
+            c = json.load(f)
+        return c if isinstance(c, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _atualizador():
+    if RAIZ not in sys.path:
+        sys.path.insert(0, RAIZ)
+    import atualizar
+    return atualizar
+
+
+def _aplicar_atualizacao():
+    codigo, texto = _atualizador().atualizar_agora(testar=True)
+    return {"codigo": codigo, "texto": texto}
+
+
+@rota("GET", r"/api/atualizacao/config")
+def r_atu_cfg(h, q):
+    h.enviar(200, {"automatica": bool(_config_local().get("verificar_atualizacao_ao_abrir", True))})
+
+
+@rota("POST", r"/api/atualizacao/config")
+def r_atu_cfg_salvar(h, q):
+    d = h.json_corpo()
+    c = _config_local()
+    c["verificar_atualizacao_ao_abrir"] = bool(d.get("automatica"))
+    with open(CONFIG_LOCAL, "w", encoding="utf-8") as f:
+        json.dump(c, f, ensure_ascii=False, indent=2)
+    h.enviar(200, {"automatica": c["verificar_atualizacao_ao_abrir"]})
+
+
+@rota("GET", r"/api/atualizacao/verificar")
+def r_atu_verificar(h, q):
+    try:
+        h.enviar(200, _atualizador().verificar_atualizacao())
+    except (OSError, ValueError) as e:
+        h.enviar(200, {"erro": "Não foi possível consultar o GitHub (%s). Sem internet ou acesso bloqueado?" % e,
+                       "instalada": VERSAO, "ha_nova": False})
+
+
+@rota("POST", r"/api/atualizacao/aplicar")
+def r_atu_aplicar(h, q):
+    h.enviar(200, {"tarefa": h.server.tarefas.iniciar(_aplicar_atualizacao)})
+
+
 # ---------------------------------------------------------------- IA e conhecimento
 
 @rota("GET", r"/api/ia/modelos")

@@ -12,10 +12,13 @@
 <header>
   <div class="marca"><b>Análise Bancária Local</b> <span id="versao"></span><br><small>Delegacia de Polícia de Mamborê - uso local, sem nuvem</small></div>
   <div class="topo-dir">
+    <button id="btn-atu" title="Consulta o GitHub (somente o número da versão; nenhum dado seu é enviado)">Verificar atualização</button>
+    <label class="mini" title="Ao abrir, consulta somente o número da versão publicada no GitHub. Nenhum dado de caso é enviado."><input type="checkbox" id="atu-auto"> avisar ao abrir</label>
     <label>Usuário <input id="usuario" placeholder="seu nome" size="14"></label>
     <label>Caso <select id="caso"></select></label>
   </div>
 </header>
+<div id="banner-atu"></div>
 <nav id="abas">
   <button data-aba="casos">Casos</button>
   <button data-aba="importar">Importar</button>

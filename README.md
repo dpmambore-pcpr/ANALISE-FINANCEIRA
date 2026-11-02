@@ -13,6 +13,13 @@ Programa para organizar, pesquisar e conferir extratos bancários, dados SIMBA, 
 
 Linux: `chmod +x *.sh && ./INICIAR_LINUX.sh` (usa `runtime_linux/` ou o `python3` do sistema, versão 3.9+).
 
+## Instalar como aplicativo e receber aviso de nova versão
+
+- **Instalador (recomendado):** em *Actions → instalador → Run workflow* (ou na página *Releases*, quando houver uma versão publicada) baixe `AnaliseBancariaLocal-Instalador-<versão>.exe`. Instala em `%LOCALAPPDATA%\AnaliseBancariaLocal` (sem precisar de administrador), cria atalho na área de trabalho e no Menu Iniciar. O Windows pode mostrar o aviso do SmartScreen porque o instalador não é assinado digitalmente: confira o SHA-256 informado na página e use *Mais informações → Executar assim mesmo*.
+- **Sem instalador:** extraia o ZIP e execute `INSTALAR_WINDOWS.bat` (faz o mesmo, usando só recursos do Windows).
+- **Aviso de atualização:** ao abrir, o programa consulta no GitHub apenas o número da versão publicada (nenhum dado de caso é enviado; falhas de rede são ignoradas). Se houver versão nova, aparece uma faixa no topo com **Atualizar agora**: baixa o código, guarda cópia em `backup_versoes/`, preserva `dados/`, Python, Ollama e modelos, roda a verificação e pede para reabrir o programa. Para desligar a consulta automática, desmarque *avisar ao abrir* no topo (o botão *Verificar atualização* continua disponível).
+- A versão publicada é a do ramo `main`: o aviso só aparece depois que as mudanças forem aprovadas (*merge*) no GitHub.
+
 ## Atualizar sem baixar tudo de novo
 
 Dê dois cliques em **`ATUALIZAR_WINDOWS.bat`** (Linux: `./ATUALIZAR_LINUX.sh`). Ele:
