@@ -7,7 +7,7 @@ Programa para organizar, pesquisar e conferir extratos bancários, dados SIMBA, 
 ## Primeira instalação (Windows)
 
 1. Em **Code → Download ZIP** (ou na página *Releases*), baixe o programa e extraia.
-2. Se você já tem a pasta `IA_Bancaria_Windows` da versão anterior, **copie a pasta `runtime_windows`** dela para dentro da pasta extraída. Senão, siga `runtime_windows/LEIA.txt` para obter o Python portátil oficial.
+2. O Python portátil (3.14.10, oficial, o mesmo da versão anterior) **já vai junto** na pasta `runtime_windows`: não é preciso instalar Python nem copiar nada. Extraia tudo (botão direito → *Extrair tudo*) e dê dois cliques em `INICIAR_WINDOWS.bat`.
 3. Dê dois cliques em `INICIAR_WINDOWS.bat`. O navegador abre sozinho; o endereço com a chave da sessão aparece na janela preta.
 4. Problemas? Rode `VERIFICAR_WINDOWS.bat` e envie o resultado (ele usa só dados fictícios).
 
@@ -54,7 +54,9 @@ ferramentas/           utilitários (gerar exemplos fictícios)
 testes/                testes automatizados com dados fictícios
 exemplos/              arquivos FICTÍCIOS para treinar o uso
 docs/                  manual, leiautes, IA local, segurança, diretrizes da v2
-runtime_windows/       Python portátil (NÃO vai para o Git)
+runtime_windows/       Python portátil do Windows (vai junto; origem em ORIGEM_PYTHON_PORTATIL.txt)
+vendor/                pypdf (Python puro, opcional) para ler PDFs
+legado/                pacote anterior (v2) enviado ao repositório, preservado
 ollama/, modelos_ollama/, ferramentas_ocr/   componentes locais opcionais (NÃO vão para o Git)
 dados/                 casos, originais e banco SQLite (NUNCA vai para o Git)
 ```

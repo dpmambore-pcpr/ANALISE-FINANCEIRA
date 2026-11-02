@@ -29,7 +29,7 @@ import zipfile
 
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 CONFIG = os.path.join(RAIZ, "atualizacao.json")
-GERENCIADOS = ["financeira", "ferramentas", "testes", "exemplos", "docs", ".github"]
+GERENCIADOS = ["financeira", "ferramentas", "testes", "exemplos", "docs", ".github", "vendor", "licencas"]
 ARQUIVOS_RAIZ = re.compile(r"^[^/]+\.(py|bat|sh|txt|md|json)$|^\.gitignore$", re.I)
 PROTEGIDOS = {"dados", "runtime_windows", "runtime_linux", "ollama", "modelos_ollama", "ferramentas_ocr", "backup_versoes",
               "configuracao_local.json", "relatorios_gerados"}
@@ -89,6 +89,8 @@ def prefixo_zip(z):
 
 def gerenciado(rel):
     topo = rel.split("/", 1)[0]
+    if topo == "runtime_windows" and not os.path.isfile(os.path.join(RAIZ, "runtime_windows", "python.exe")):
+        return True
     if topo in PROTEGIDOS:
         return False
     if "/" not in rel:

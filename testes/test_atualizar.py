@@ -62,6 +62,12 @@ class TestAtualizar(unittest.TestCase):
         self.assertEqual(len(backups), 1)
         self.assertTrue(os.path.exists(os.path.join(self.inst, "backup_versoes", backups[0], "financeira", "antigo.py")))
 
+    def test_instala_runtime_somente_se_ausente(self):
+        os.remove(os.path.join(self.inst, "runtime_windows", "python.exe"))
+        self.assertEqual(self.mod.aplicar(self.pacote()), 0)
+        self.assertEqual(self.ler("runtime_windows/python.exe"), "SOBRESCREVER")
+        self.assertEqual(self.ler("dados/analise_v3.sqlite"), "BANCO")
+
     def test_recusa_caminho_suspeito(self):
         with self.assertRaises(IOError):
             self.mod.aplicar(self.pacote({"ANALISE-FINANCEIRA-main/../fora.py": "x"}))

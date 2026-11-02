@@ -6,10 +6,9 @@ dados_*/
 *.db
 backup_versoes/
 relatorios_gerados/
+diagnostico_windows.txt
 
-# Componentes locais grandes ou de terceiros (baixados/conferidos separadamente)
-runtime_windows/*
-!runtime_windows/LEIA.txt
+# Componentes locais grandes (o Python portátil do Windows em runtime_windows É versionado)
 runtime_linux/
 ollama/
 modelos_ollama/

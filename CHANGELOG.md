@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## Correções de empacotamento
+- O Python portátil do Windows (`runtime_windows`, o mesmo do pacote v2) e o `pypdf` (`vendor/`) agora fazem parte do repositório: o ZIP do GitHub abre sem instalar nada.
+- Os `.bat` só aceitam um Python que realmente funcione (o atalho da Microsoft Store não é mais usado por engano) e explicam o que fazer.
+- O atualizador restaura `runtime_windows` se ele estiver ausente e continua sem alterar `dados/`.
+- Pacote v2 original preservado em `legado/`.
+
 ## 3.0.0
 - Repositório no GitHub com atualizador que preserva `dados/`, runtime e modelos (`ATUALIZAR_WINDOWS.bat`).
 - Pesquisa com **filtros de múltipla escolha** listando todas as opções encontradas (CPF/CNPJ, nomes, contas, bancos, PIX, tipos, datas, IP, cidade, arquivo, remessa), com contagens e busca dentro da lista.
