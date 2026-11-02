@@ -6,3 +6,6 @@
 *.zip binary
 *.pdf binary
 exemplos/** binary
+runtime_windows/** -text
+vendor/** -text
+legado/** binary
