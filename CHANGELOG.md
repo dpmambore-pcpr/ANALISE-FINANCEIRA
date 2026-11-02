@@ -1,5 +1,8 @@
 # Histórico de versões
 
+## 3.1.1
+- Importação de PDF **EXTRATO DETALHADO** (texto selecionável): reconhece o layout, importa os lançamentos com página/linha e confere totais de créditos/débitos de cada conta com os do próprio relatório.
+
 ## 3.1.0
 - Aviso de nova versão dentro do programa (faixa no topo + botão **Atualizar agora**), com opção de desligar a consulta ao abrir.
 - Instalador do Windows (`instalador/AnaliseBancaria.iss`, gerado pelo fluxo `instalador.yml`) e `INSTALAR_WINDOWS.bat`.

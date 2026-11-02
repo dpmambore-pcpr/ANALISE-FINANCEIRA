@@ -3,7 +3,7 @@
 import base64
 import os
 
-from . import (adaptadores, auditoria, banco, documentos, fontes, importacao, rif, simba, util)
+from . import (adaptadores, auditoria, banco, documentos, extrato_pdf, fontes, importacao, leitores, rif, simba, util)
 
 NOME_BANCO = "analise_v3.sqlite"
 
@@ -92,7 +92,18 @@ class App:
         if f["tipo"] == "zip":
             return {"tipo_arquivo": "zip", "conteudo": self.conteudo_zip(fonte_id)}
         if f["tipo"] == "pdf":
-            return {"tipo_arquivo": "pdf", "ocr": documentos.ocr_disponivel()}
+            res = {"tipo_arquivo": "pdf", "ocr": documentos.ocr_disponivel()}
+            try:
+                paginas, _ = leitores.texto_pdf(cam)
+                if extrato_pdf.reconhecer(paginas):
+                    res["extrato_detalhado"] = extrato_pdf.resumo(extrato_pdf.analisar(paginas))
+                elif any("EXTRATO DETALHADO" in t for t in paginas[:3]):
+                    res["aviso_leitura"] = ("O PDF parece ser um EXTRATO DETALHADO, mas o texto foi lido sem manter as linhas da tabela "
+                                            "(leitor interno). Confirme que a pasta vendor (pypdf) existe ao lado do programa e abra "
+                                            "pelo INICIAR_WINDOWS.bat.")
+            except Exception as e:  # noqa: BLE001
+                res["aviso_leitura"] = "Não foi possível ler o texto do PDF: %s" % e
+            return res
         return {"tipo_arquivo": f["tipo"]}
 
     # ------------------------------------------------------------ importação
@@ -124,6 +135,10 @@ class App:
                 simba.importar(imp, cam, opcoes)
             elif adaptador == "rif":
                 rif.importar(imp, cam, f["tipo"], f["nome_original"], opcoes, os.path.join(self.pasta, "tmp"))
+            elif adaptador == "pdf_extrato":
+                if f["tipo"] != "pdf":
+                    raise ValueError("Use um arquivo PDF.")
+                extrato_pdf.importar(imp, cam)
             elif adaptador == "pdf_texto":
                 if f["tipo"] != "pdf":
                     raise ValueError("Use um arquivo PDF.")

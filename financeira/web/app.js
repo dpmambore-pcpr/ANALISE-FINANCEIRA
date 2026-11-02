@@ -128,8 +128,21 @@ async function prepararImportacao(fonteId, aba, linhaCab) {
   estado.previa = p;
   const alvo = $("#imp-previa");
   if (p.tipo_arquivo === "zip") return mostrarZip(fonteId, p.conteudo, alvo);
+  if (p.tipo_arquivo === "pdf" && p.extrato_detalhado) {
+    const ed = p.extrato_detalhado;
+    alvo.innerHTML = `<div class="cartao"><h3>PDF reconhecido: EXTRATO DETALHADO</h3>
+      <p>Foram encontradas <b>${ed.contas.length}</b> conta(s) e <b>${ed.lancamentos}</b> lançamento(s)${ed.nao_reconhecidas ? `, além de <b>${ed.nao_reconhecidas}</b> linha(s) com data que não pôde ser interpretada (ficarão pendentes)` : ""}.</p>
+      <table><tr><th>Titular</th><th>CPF/CNPJ</th><th>Banco</th><th>Ag.</th><th>Conta</th><th>Tipo</th><th>Lanç.</th><th>Créditos</th><th>Débitos</th></tr>
+      ${ed.contas.map((c) => `<tr><td>${esc(c.titular)}</td><td>${esc(c.doc)}</td><td>${esc(c.banco)} ${esc(c.banco_nome)}</td><td>${esc(c.agencia)}</td><td>${esc(c.conta)}</td><td>${esc(c.tipo)}</td><td>${c.lancamentos}</td><td>${esc(c.creditos)}</td><td>${esc(c.debitos)}</td></tr>`).join("")}</table>
+      <p class="aviso">Este relatório é gerado por sistema de análise, não é o documento original do banco. Os totais de créditos/débitos de cada conta serão conferidos com os informados no próprio PDF.</p>
+      <button class="primario" id="btn-imp-pdf-ext">Importar lançamentos deste extrato</button>
+      <button id="btn-imp-pdf">Somente extrair o texto (Pesquisa geral)</button></div>`;
+    $("#btn-imp-pdf-ext").onclick = () => executarImportacao(fonteId, "pdf_extrato", null, {});
+    $("#btn-imp-pdf").onclick = () => executarImportacao(fonteId, "pdf_texto", null, {});
+    return;
+  }
   if (p.tipo_arquivo === "pdf") {
-    alvo.innerHTML = `<div class="cartao"><h3>PDF</h3><p>O texto selecionável será extraído por página e os identificadores (CPF, PIX, IP...) ficarão disponíveis na Pesquisa geral. Tabelas de PDF não viram lançamentos automaticamente.</p>
+    alvo.innerHTML = `<div class="cartao"><h3>PDF</h3>${p.aviso_leitura ? `<div class="erro">${esc(p.aviso_leitura)}</div>` : ""}<p>O texto selecionável será extraído por página e os identificadores (CPF, PIX, IP...) ficarão disponíveis na Pesquisa geral. Se for um \"EXTRATO DETALHADO\" com texto selecionável, o programa reconhece a tabela e oferece importar os lançamentos; outros layouts ou PDF digitalizado (OCR) não viram lançamentos automaticamente.</p>
       <p class="nota">OCR local: ${p.ocr.disponivel ? "disponível" : "não instalado (veja ferramentas_ocr/LEIA.txt)"}</p>
       <button class="primario" id="btn-imp-pdf">Extrair texto</button> <button id="btn-imp-pdf-rif">É um RIF em PDF? Extrair texto como documento do RIF</button></div>`;
     $("#btn-imp-pdf").onclick = () => executarImportacao(fonteId, "pdf_texto", null, {});

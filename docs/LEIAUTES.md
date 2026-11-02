@@ -39,4 +39,15 @@ CSV/XLSX ou ZIP com as tabelas *Comunicações* (`idComunicacao`, `Data_do_Receb
 
 ## PDF
 
-Texto selecionável é extraído por página (leitor próprio, sem bibliotecas externas). PDFs digitalizados precisam de OCR local (`ferramentas_ocr/LEIA.txt`). Tabelas em PDF **não** viram lançamentos automaticamente: os identificadores (CPF, PIX, IP, coordenadas etc.) ficam disponíveis na Pesquisa geral com a página.
+Texto selecionável é extraído por página (leitor próprio, sem bibliotecas externas). PDFs digitalizados precisam de OCR local (`ferramentas_ocr/LEIA.txt`). Tabelas em PDF de layout desconhecido **não** viram lançamentos automaticamente: os identificadores (CPF, PIX, IP, coordenadas etc.) ficam disponíveis na Pesquisa geral com a página.
+
+### PDF "EXTRATO DETALHADO" (suportado, texto selecionável)
+
+Relatório com cabeçalho `Titular / Representante / Banco / Ag / C/C. / Tipo / Saldo` e tabela `Data, Histórico, CNAB, Doc., Valor (R$), D/C, CPF/CNPJ, Nome Benef/Depos, Bco, Ag, Conta, Observações`. Ao enviar o PDF, a aba Importar reconhece o layout, lista as contas e oferece **Importar lançamentos deste extrato**.
+
+- Cada linha vira um lançamento com página e linha de origem e o texto bruto; natureza vem de D/C; valores em centavos.
+- Cada bloco `Titular` é uma conta (conta corrente e poupança do mesmo número ficam separadas: a poupança aparece como `conta (Poupança)`). Titular e representante entram como cadastro.
+- CPF/CNPJ que perdeu zeros à esquerda só é restaurado se o resultado tiver dígitos verificadores válidos (fica registrado na observação da contraparte). Marcadores "9999 9999..." e `NAO-CORRENTISTA` não viram CPF/nome.
+- Cidade/UF e canal (INTERNET, Telefone...) vêm de "Local transação" do relatório; não são geolocalização.
+- Conferência automática: créditos e débitos calculados × os informados pelo relatório; saldo inicial + créditos − débitos × saldo final (informativo). Divergências são mostradas e nada é ajustado.
+- É um relatório de sistema de análise, **não** o documento original do banco; confira com as respostas originais. PDF digitalizado exige OCR e não é lido por este módulo. Linhas iniciadas por data que não seguem as colunas ficam **pendentes**, nunca descartadas.

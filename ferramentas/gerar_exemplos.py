@@ -176,6 +176,74 @@ def documento_pdf():
         f.write(pdf.gerar())
 
 
+def extrato_detalhado_pdf():
+    """PDF fictício no layout 'EXTRATO DETALHADO' (uma conta em 2 páginas, outra em 1)."""
+    def sem_zeros(n):
+        return util.gerar_cpf_ficticio(n)[1:]
+
+    def moeda(c):
+        return ("%d,%02d" % (c // 100, c % 100)).replace(",", "X").replace("X", ",") if c < 100000 else \
+            "{:,}".format(c // 100).replace(",", ".") + ",%02d" % (c % 100)
+
+    contas = [
+        {"titular": "FULANO FICTICIO DA SILVA", "marca": "(investigado)", "doc": "CPF: " + FULANO, "banco": "999",
+         "banco_nome": "BANCO FICTICIO S/A", "ag": "0001", "cc": "12345", "tipo": "Conta Corrente", "si": 0,
+         "linhas": [
+             ("01/03/2026", "PIX RECEBIDO", "209", "1001", 60000, "C", "%s PESSOA ALFA 999 0001 22222" % sem_zeros(2), None),
+             ("02/03/2026", "TED RECEBIDA", "209", "1002", 10000, "C", "%s PESSOA GAMA 888 0002 33333" % sem_zeros(3), None),
+             ("03/03/2026", "PIX ENVIADO", "120", "1003", 25000, "D", "%s PESSOA BETA 777 0003 44444 CORRENTISTA" % sem_zeros(4),
+              "Local transação: INTERNET"),
+             ("04/03/2026", "SAQUE DINHEIRO ATM", "114", "1004", 5000, "D", "CONFORME CIRCULAR 3978/2020", None),
+             ("05/03/2026", "TRANSF AUTORIZ ENTRE AGS", "213", "1005", 12000, "C", "PESSOA DELTA FICTICIA", None),
+             ("06/03/2026", "ENVIO DE DINHEIRO", "120", "1006", 3000, "D", "9999 99999999999999999999 NAO-CORRENTISTA",
+              "Local transação: Ag: 1 - AGENCIA FICTICIA - CIDADE EXEMPLO/PR"),
+         ], "quebra": 3},
+        {"titular": "PESSOA EXEMPLO LTDA", "marca": "", "doc": "CNPJ: " + cnpj(1), "banco": "888", "banco_nome": "INSTITUICAO DE PAGAMENTO FICTICIA",
+         "ag": "1", "cc": "98765", "tipo": "", "si": 1000,
+         "linhas": [("10/03/2026", "TRANSFERENCIA ENTRE CONTAS", "213", "2001", 4000, "C", "%s FULANO FICTICIO DA SILVA 999 0001 12345" % sem_zeros(1), None)],
+         "quebra": None},
+    ]
+    pdf = escritores.PDF()
+
+    def cabecalho(c=None):
+        for t in ("Tipo #4", "Base pesquisada: Análise", "EXTRATO DETALHADO - CASO 000-FICTICIO-000000-00"):
+            pdf.texto(t, 7)
+        if c:
+            cr = sum(x[4] for x in c["linhas"] if x[5] == "C")
+            db = sum(x[4] for x in c["linhas"] if x[5] == "D")
+            pdf.texto("Titular: %s %s %s Início Rel.: 01/01/2026 Fim Rel.: 31/03/2026" % (c["titular"], c["marca"], c["doc"]), 6)
+            pdf.texto("Banco: %s Nº Banco: %s" % (c["banco_nome"], c["banco"]), 6)
+            pdf.texto("Ag: %s Inicio Mov.: 01/03/2026 Extrato (créditos): R$ %s Extrato (débitos): R$ %s" % (c["ag"], moeda(cr), moeda(db)), 6)
+            pdf.texto("C/C.: %s Fim Mov.: 31/03/2026 Identificados: R$ %s (100,00%%) Identificados: R$ %s (100,00%%)" % (c["cc"], moeda(cr), moeda(db)), 6)
+            pdf.texto("Tipo: %s Saldo Inicial: R$ %s" % (c["tipo"], moeda(c["si"])), 6)
+            pdf.texto("Abert.: 01/01/2020 Saldo Final: R$ %s" % moeda(c["si"] + cr - db), 6)
+            pdf.texto("Encer.:", 6)
+        pdf.texto("Data Histórico CNAB Doc. Valor (R$) D/C CPF/CNPJ Nome Benef/Depos Bco Ag Conta Observações", 6, True)
+
+    def rodape(pagina, total):
+        pdf.texto("Usuário: usuario.ficticio", 6)
+        pdf.texto("Data: 01/04/2026 Página %d / %d" % (pagina, total), 6)
+
+    primeira = True
+    for c in contas:
+        if not primeira:
+            pdf._nova()
+        primeira = False
+        cabecalho(c)
+        total_pag = 2 if c["quebra"] else 1
+        for i, (dt, h, cnab, doc, v, dc, resto, local) in enumerate(c["linhas"]):
+            if c["quebra"] and i == c["quebra"]:
+                rodape(1, total_pag)
+                pdf._nova()
+                cabecalho()
+            pdf.texto("%s %s %s %s %s %s %s" % (dt, h, cnab, doc, moeda(v), dc, resto), 6)
+            if local:
+                pdf.texto(local, 6)
+        rodape(total_pag, total_pag)
+    with open(os.path.join(PASTA, "EXEMPLO_FICTICIO_extrato_detalhado.pdf"), "wb") as f:
+        f.write(pdf.gerar())
+
+
 def main():
     os.makedirs(PASTA, exist_ok=True)
     extrato_csv()
@@ -187,6 +255,7 @@ def main():
     cadastro()
     rif_zip()
     documento_pdf()
+    extrato_detalhado_pdf()
     print("Exemplos fictícios gerados em", PASTA)
 
 
