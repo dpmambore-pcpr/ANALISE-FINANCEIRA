@@ -114,6 +114,18 @@ class Manipulador(BaseHTTPRequestHandler):
     def erro(self, codigo, msg):
         self.enviar(codigo, {"erro": msg})
 
+    def _pagina_sessao_invalida(self):
+        html = (
+            "<!doctype html><meta charset='utf-8'><title>Abra pelo atalho</title>"
+            "<body style='font-family:Segoe UI,Arial,sans-serif;max-width:640px;margin:40px;color:#1b1f24'>"
+            "<h2>Esta janela é antiga</h2>"
+            "<p>O programa gerou um endereço novo. Feche <b>todas</b> as abas desta análise, "
+            "feche a janela preta e abra de novo pelo atalho <b>INICIAR_WINDOWS</b> "
+            "(ou clique no endereço completo que aparece na janela preta, o que tem <code>chave=</code>).</p>"
+            "<p>Não use favoritos nem atualize (F5) a aba velha.</p></body>"
+        )
+        return self.enviar(403, html, "text/html; charset=utf-8")
+
     def json_corpo(self):
         n = int(self.headers.get("Content-Length") or 0)
         if n > 50 * 1024 * 1024:
@@ -143,16 +155,21 @@ class Manipulador(BaseHTTPRequestHandler):
         caminho = partes.path
         consulta = urllib.parse.parse_qs(partes.query)
         if caminho == "/" and "chave" in consulta:
-            if secrets.compare_digest(consulta["chave"][0], self.server.chave):
+            recebida = consulta["chave"][0]
+            try:
+                ok = secrets.compare_digest(recebida, self.server.chave)
+            except (TypeError, ValueError):
+                ok = False
+            if ok:
                 self.send_response(303)
                 self.send_header("Set-Cookie", "sessao_%d=%s; HttpOnly; SameSite=Strict; Path=/" % (self.server.server_address[1], self.server.chave))
                 self.send_header("Location", "/")
                 self._cabecalhos_seguranca()
                 self.end_headers()
                 return
-            return self.erro(403, "Chave de sessão inválida")
+            return self._pagina_sessao_invalida()
         if not self._sessao_ok():
-            return self.enviar(403, "<h3>Sessão inválida. Use o endereço completo exibido no terminal.</h3>", "text/html; charset=utf-8")
+            return self._pagina_sessao_invalida()
         if metodo == "POST" and self.headers.get("X-Requested-With") != "analise":
             return self.erro(403, "Requisição recusada")
         if not caminho.startswith("/api/"):
@@ -743,11 +760,34 @@ def r_modelfile(h, q):
 
 # ---------------------------------------------------------------- inicialização
 
+def _chave_sessao(pasta_dados):
+    """Reusa a chave entre reaberturas para a aba antiga não quebrar após atualizar."""
+    os.makedirs(pasta_dados, exist_ok=True)
+    p = os.path.join(pasta_dados, "sessao.json")
+    try:
+        with open(p, encoding="utf-8") as f:
+            k = (json.load(f) or {}).get("chave") or ""
+        if isinstance(k, str) and len(k) >= 16:
+            return k
+    except (OSError, ValueError):
+        pass
+    k = secrets.token_urlsafe(24)
+    tmp = p + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump({"chave": k}, f)
+    os.replace(tmp, p)
+    try:
+        os.chmod(p, 0o600)
+    except OSError:
+        pass
+    return k
+
+
 def criar_servidor(pasta_dados, porta=0):
     srv = ThreadingHTTPServer(("127.0.0.1", porta), Manipulador)
     srv.daemon_threads = True
     srv.app = servico.App(pasta_dados)
-    srv.chave = secrets.token_urlsafe(24)
+    srv.chave = _chave_sessao(pasta_dados)
     srv.tarefas = Tarefas()
     return srv
 

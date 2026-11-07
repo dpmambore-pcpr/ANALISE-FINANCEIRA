@@ -1,5 +1,8 @@
 # Histórico de versões
 
+## 3.3.2
+- Depois de atualizar, a chave de sessão é reaproveitada: a aba do navegador deixa de mostrar «Chave de sessão inválida». Se ainda aparecer, a página explica para fechar a aba velha e abrir pelo atalho.
+
 ## 3.3.1
 - **Atualizar programa** no topo: um clique consulta o GitHub; se houver versão nova, confirma e baixa; em seguida o programa reabre sozinho. Sem janela preta e sem digitar S. Consulta a API do GitHub (evita cache antigo). `ATUALIZAR_WINDOWS.bat` também aplica sem perguntar.
 

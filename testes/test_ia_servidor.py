@@ -128,6 +128,21 @@ class TestServidor(CasoTeste):
         self.assertIn("default-src 'self'", cab["Content-Security-Policy"])
         self.assertEqual(self.req("/../../etc/passwd")[0], 404)
         self.assertEqual(self.srv.server_address[0], "127.0.0.1")
+        st, corpo, cab = self.req("/?chave=chave-errada-de-outra-sessao")
+        self.assertEqual(st, 403)
+        self.assertIn(b"janela", corpo.lower())
+        self.assertIn("text/html", cab["Content-Type"])
+
+    def test_chave_de_sessao_sobrevive_a_reabrir(self):
+        pasta = os.path.join(self.tmp, "dados")
+        a = servidor.criar_servidor(pasta, 0)
+        b = servidor.criar_servidor(pasta, 0)
+        try:
+            self.assertEqual(a.chave, b.chave)
+            self.assertTrue(os.path.isfile(os.path.join(pasta, "sessao.json")))
+        finally:
+            a.server_close()
+            b.server_close()
 
     def test_fluxo_completo_por_http(self):
         with open(exemplo("EXEMPLO_FICTICIO_extrato.csv"), "rb") as f:
