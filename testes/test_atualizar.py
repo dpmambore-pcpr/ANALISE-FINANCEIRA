@@ -69,12 +69,26 @@ class TestAtualizar(unittest.TestCase):
         self.assertEqual(self.ler("dados/analise_v3.sqlite"), "BANCO")
 
     def test_verifica_versao_publicada(self):
-        self.mod.baixar = lambda url, timeout=0: b'VERSAO = "2.10.0"\n'
+        self.mod.baixar = lambda url, timeout=0, extra_headers=None: b'VERSAO = "2.10.0"\n'
         r = self.mod.verificar_atualizacao()
         self.assertTrue(r["ha_nova"])
         self.assertEqual(r["disponivel"], "2.10.0")
-        self.mod.baixar = lambda url, timeout=0: b'VERSAO = "2.0.0"\n'
+        self.mod.baixar = lambda url, timeout=0, extra_headers=None: b'VERSAO = "2.0.0"\n'
         self.assertFalse(self.mod.verificar_atualizacao()["ha_nova"])
+
+    def test_consultar_cai_para_raw_se_api_falha(self):
+        urls = []
+
+        def fake(url, timeout=0, extra_headers=None):
+            urls.append(url)
+            if "api.github.com" in url:
+                raise OSError("api off")
+            return b'VERSAO = "8.1.0"\n'
+
+        self.mod.baixar = fake
+        self.assertEqual(self.mod.consultar_versao_remota(), "8.1.0")
+        self.assertTrue(any("api.github.com" in u for u in urls))
+        self.assertTrue(any("raw.githubusercontent.com" in u for u in urls))
 
     def test_atualizar_agora(self):
         self.mod.baixar = lambda url, timeout=0: self.pacote()

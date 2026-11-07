@@ -1,5 +1,8 @@
 # Histórico de versões
 
+## 3.3.1
+- **Atualizar programa** no topo: um clique consulta o GitHub; se houver versão nova, confirma e baixa; em seguida o programa reabre sozinho. Sem janela preta e sem digitar S. Consulta a API do GitHub (evita cache antigo). `ATUALIZAR_WINDOWS.bat` também aplica sem perguntar.
+
 ## 3.3.0
 - **Gemini opcional** (parceria institucional da Polícia Civil): chave em `dados/gemini.json` ou `ANALISE_GEMINI_CHAVE`, confirmação explícita de envio e modelo `gemini:` no chat. Desligado por padrão; a análise preliminar continua neste computador. O navegador não fala com o Google (CSP `connect-src 'self'`); só o processo local envia, se autorizado. Destino HTTPS em `googleapis.com` (AI Studio ou Vertex).
 - **Atualização:** o botão Verificar mostra a versão instalada e a publicada no GitHub (`main`) e deixa claro que só **Atualizar agora** baixa o pacote.

@@ -48,6 +48,10 @@ Reúne identificadores de todas as fontes: extratos (lançamento e origem/destin
 3. **Gerar análise preliminar** calcula, sem Ollama: valores semelhantes, destino do dinheiro da vítima, saques/cartão vs conta de passagem, débito imediato.
 4. **Perguntar** abre um chat. Sem modelo, a resposta vem dessa análise. Com Ollama local, o modelo redige neste computador. Com Gemini da parceria (chave + autorização + modelo Gemini no seletor), a pergunta vai à nuvem Google; o programa avisa isso na resposta. Enter envia; Shift+Enter quebra a linha.
 
+## Atualizar o programa
+
+No topo da tela, **Atualizar programa**. O programa consulta o GitHub; se houver versão nova, confirma e baixa. Os casos em `dados/` não são alterados. Depois ele tenta reabrir sozinho. Se *avisar ao abrir* estiver marcado, a faixa amarela aparece sozinha quando houver versão nova — clique em **Atualizar agora**.
+
 ## Desfazer e auditoria
 
 - Revisores podem desfazer uma importação: os registros dela são removidos e o original permanece.

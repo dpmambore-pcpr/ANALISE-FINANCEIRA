@@ -876,29 +876,44 @@ async function carregarAuditoria() {
 $("#btn-auditoria").onclick = () => carregarAuditoria();
 
 // ------------------------------------------------------------------ atualização do programa
+async function aplicarAtualizacao(r) {
+  const b = $("#banner-atu");
+  b.innerHTML = `<div class="aviso">Baixando v${esc(r.disponivel)} do GitHub. Seus casos não são alterados. <span id="atu-status"></span></div>`;
+  try {
+    const t = await api("POST", "/api/atualizacao/aplicar", {});
+    const res = await esperarTarefa(t.tarefa, $("#atu-status"));
+    if (res.codigo !== 0) {
+      b.innerHTML = `<div class="erro">A atualização foi baixada, mas a verificação automática falhou. A versão anterior está em backup_versoes.<pre>${esc(res.texto)}</pre></div>`;
+      return;
+    }
+    b.innerHTML = `<div class="ok"><b>Atualizado para v${esc(r.disponivel)}.</b> Reabrindo o programa…</div>`;
+    try { await api("POST", "/api/atualizacao/reiniciar", {}); }
+    catch (e) {
+      b.innerHTML = `<div class="ok"><b>Atualizado para v${esc(r.disponivel)}.</b> Feche a janela preta e abra de novo pelo atalho para usar a versão nova.</div>`;
+    }
+  } catch (e) { b.innerHTML = `<div class="erro">Falha ao atualizar: ${esc(e.message)}</div>`; }
+}
+function faixaNovaVersao(r) {
+  const b = $("#banner-atu");
+  b.innerHTML = `<div class="aviso"><b>Nova versão v${esc(r.disponivel)}</b> (esta máquina: v${esc(r.instalada)}). Um clique atualiza; os casos em dados/ ficam. <button type="button" id="btn-atu-aplicar" class="primario">Atualizar agora</button></div>`;
+  $("#btn-atu-aplicar").onclick = () => aplicarAtualizacao(r);
+}
 async function verificarAtualizacao(manual) {
   const b = $("#banner-atu");
-  if (manual) b.innerHTML = '<div class="nota" style="padding:6px 16px">Consultando o GitHub (ramo publicado; nenhum dado de caso é enviado)...</div>';
+  if (manual) b.innerHTML = '<div class="nota" style="padding:6px 16px">Consultando o GitHub…</div>';
   let r;
   try { r = await api("GET", "/api/atualizacao/verificar"); } catch (e) { r = { erro: e.message }; }
-  if (r.erro) { b.innerHTML = manual ? `<div class="aviso">${esc(r.erro)}</div>` : ""; return; }
-  const pub = `Publicada no GitHub (${esc(r.ramo || "main")}): <b>v${esc(r.disponivel)}</b>. Instalada neste computador: v${esc(r.instalada)}.`;
+  if (r.erro) { b.innerHTML = manual ? `<div class="aviso">${esc(r.erro)}</div>` : ""; return r; }
   if (!r.ha_nova) {
-    b.innerHTML = manual ? `<div class="ok">${pub} Não há versão mais nova publicada. O botão Verificar só consulta; novidades em revisão no GitHub só aparecem depois do merge em ${esc(r.ramo || "main")}.</div>` : "";
-    return;
+    if (manual) b.innerHTML = `<div class="ok">Você já está na versão mais recente: <b>v${esc(r.instalada)}</b> (igual ao GitHub).</div>`;
+    return r;
   }
-  b.innerHTML = `<div class="aviso">${pub} <b>Clique em Atualizar agora</b> para baixar (seus casos em dados/ não são alterados; cópia em backup_versoes). <button id="btn-atu-aplicar" class="primario">Atualizar agora</button> <span id="atu-status"></span></div>`;
-  $("#btn-atu-aplicar").onclick = async () => {
-    if (!confirm(`Atualizar de v${r.instalada} para v${r.disponivel}? Seus dados serão preservados.`)) return;
-    $("#btn-atu-aplicar").disabled = true;
-    try {
-      const t = await api("POST", "/api/atualizacao/aplicar", {});
-      const res = await esperarTarefa(t.tarefa, $("#atu-status"));
-      b.innerHTML = res.codigo === 0
-        ? `<div class="ok"><b>Atualizado para v${esc(r.disponivel)}.</b> Feche a janela preta do programa e abra de novo (INICIAR_WINDOWS) para usar a versão nova.</div>`
-        : `<div class="erro">A atualização foi aplicada, mas a verificação automática falhou. A versão anterior está em backup_versoes.<pre>${esc(res.texto)}</pre></div>`;
-    } catch (e) { b.innerHTML = `<div class="erro">Falha ao atualizar: ${esc(e.message)}</div>`; }
-  };
+  if (manual && confirm("Há uma versão nova (v" + r.disponivel + "). Atualizar agora?\n\nSeus casos e dados serão preservados.")) {
+    await aplicarAtualizacao(r);
+    return r;
+  }
+  faixaNovaVersao(r);
+  return r;
 }
 $("#btn-atu").onclick = () => verificarAtualizacao(true);
 $("#atu-auto").onchange = (ev) => api("POST", "/api/atualizacao/config", { automatica: ev.target.checked }).catch((e) => alert(e.message));

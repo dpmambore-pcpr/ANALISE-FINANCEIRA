@@ -62,12 +62,15 @@ class _SoGithub(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def baixar(url, timeout=120):
+def baixar(url, timeout=120, extra_headers=None):
     u = urllib.parse.urlsplit(url)
     if u.scheme != "https" or u.hostname not in HOSTS:
         raise IOError("Endereço não permitido: %s" % url)
     abridor = urllib.request.build_opener(_SoGithub)
-    req = urllib.request.Request(url, headers={"User-Agent": "analise-bancaria-atualizador"})
+    cab = {"User-Agent": "analise-bancaria-atualizador", "Cache-Control": "no-cache", "Pragma": "no-cache"}
+    if extra_headers:
+        cab.update(extra_headers)
+    req = urllib.request.Request(url, headers=cab)
     with abridor.open(req, timeout=timeout) as r:
         return r.read()
 
@@ -76,20 +79,44 @@ def _tupla(v):
     return tuple(int(x) for x in re.findall(r"\d+", v or "")) or (0,)
 
 
-def consultar_versao_remota():
-    """Lê só o arquivo financeira/__init__.py do GitHub (poucos bytes; nenhum dado é enviado)."""
-    c = config()
-    url = "https://raw.githubusercontent.com/%s/%s/financeira/__init__.py" % (c["repositorio"], c["ramo"])
-    try:
-        txt = baixar(url, timeout=8).decode("utf-8", "replace")
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            raise IOError("o ramo '%s' do repositório ainda não contém o programa" % c["ramo"])
-        raise
+def _versao_no_texto(bruto):
+    txt = bruto.decode("utf-8", "replace") if isinstance(bruto, bytes) else (bruto or "")
     m = re.search(r'VERSAO\s*=\s*"([^"]+)"', txt)
-    if not m:
-        raise IOError("Não foi possível ler a versão publicada.")
-    return m.group(1)
+    if m:
+        return m.group(1)
+    try:
+        dados = json.loads(txt)
+        import base64
+        conteudo = base64.b64decode(dados.get("content") or "")
+        m = re.search(r'VERSAO\s*=\s*"([^"]+)"', conteudo.decode("utf-8", "replace"))
+        if m:
+            return m.group(1)
+    except (ValueError, TypeError):
+        pass
+    return None
+
+
+def consultar_versao_remota():
+    """Lê a versão publicada. Tenta a API do GitHub (sem cache) e, se falhar, o arquivo raw."""
+    c = config()
+    repo, ramo = c["repositorio"], c["ramo"]
+    tentativas = (
+        ("https://api.github.com/repos/%s/contents/financeira/__init__.py?ref=%s" % (repo, ramo),
+         {"Accept": "application/vnd.github.raw"}, 15),
+        ("https://raw.githubusercontent.com/%s/%s/financeira/__init__.py" % (repo, ramo), {}, 15),
+    )
+    ultimo = None
+    for url, extra, timeout in tentativas:
+        try:
+            v = _versao_no_texto(baixar(url, timeout=timeout, extra_headers=extra))
+            if v:
+                return v
+        except (urllib.error.URLError, urllib.error.HTTPError, OSError, ValueError) as e:
+            ultimo = e
+            continue
+    if ultimo is not None:
+        raise IOError("Não foi possível consultar o GitHub (%s)." % ultimo)
+    raise IOError("Não foi possível ler a versão publicada.")
 
 
 def verificar_atualizacao():

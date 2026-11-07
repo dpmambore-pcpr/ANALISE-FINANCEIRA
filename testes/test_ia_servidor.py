@@ -191,6 +191,15 @@ class TestServidor(CasoTeste):
             self.req("/api/atualizacao/config", {"automatica": False})
             self.assertFalse(json.loads(self.req("/api/atualizacao/config")[1])["automatica"])
             self.assertEqual(self.req("/api/atualizacao/aplicar", {}, xrw=False)[0], 403)
+            chamados = []
+            orig_re = servidor._agendar_reinicio
+            servidor._agendar_reinicio = lambda pasta, porta: chamados.append((pasta, porta))
+            try:
+                st, corpo, _ = self.req("/api/atualizacao/reiniciar", {})
+                self.assertEqual(st, 200, corpo)
+                self.assertTrue(chamados)
+            finally:
+                servidor._agendar_reinicio = orig_re
         finally:
             servidor._atualizador, servidor.CONFIG_LOCAL = orig, cfg
 

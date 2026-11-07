@@ -7,8 +7,10 @@ import os
 import re
 import secrets
 import shutil
+import subprocess
 import sys
 import threading
+import time
 import traceback
 import urllib.parse
 import webbrowser
@@ -572,6 +574,32 @@ def r_atu_verificar(h, q):
 @rota("POST", r"/api/atualizacao/aplicar")
 def r_atu_aplicar(h, q):
     h.enviar(200, {"tarefa": h.server.tarefas.iniciar(_aplicar_atualizacao)})
+
+
+def _agendar_reinicio(pasta, porta):
+    """Abre de novo o programa daqui a alguns segundos e encerra este processo."""
+    py, iniciar = sys.executable, os.path.join(RAIZ, "iniciar.py")
+    dados, porta = os.path.abspath(pasta), int(porta)
+
+    def morrer():
+        time.sleep(0.5)
+        os._exit(0)
+
+    if os.name == "nt":
+        cmd = 'ping 127.0.0.1 -n 4 >nul & "%s" -X utf8 -u "%s" --dados "%s" --porta %d' % (
+            py, iniciar, dados, porta)
+        flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        subprocess.Popen(cmd, cwd=RAIZ, shell=True, close_fds=True, creationflags=flags)
+    else:
+        subprocess.Popen([py, "-X", "utf8", "-u", iniciar, "--dados", dados, "--porta", str(porta)],
+                         cwd=RAIZ, start_new_session=True, close_fds=True)
+    threading.Thread(target=morrer, daemon=True).start()
+
+
+@rota("POST", r"/api/atualizacao/reiniciar")
+def r_atu_reiniciar(h, q):
+    _agendar_reinicio(h.app.pasta, h.server.server_address[1])
+    h.enviar(200, {"ok": True})
 
 
 # ---------------------------------------------------------------- IA e conhecimento

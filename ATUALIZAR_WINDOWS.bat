@@ -13,7 +13,7 @@ set "PY="
 if exist "%~dp0runtime_windows\python.exe" set PY="%~dp0runtime_windows\python.exe"
 if not defined PY call :procurar_python
 if not defined PY goto sem_python
-%PY% -X utf8 -u "%~dp0atualizar.py" --testar %*
+%PY% -X utf8 -u "%~dp0atualizar.py" --testar --sim %*
 pause
 exit /b 0
 
