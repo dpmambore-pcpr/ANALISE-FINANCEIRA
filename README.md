@@ -1,6 +1,6 @@
 # Análise Bancária Local — v3
 
-Programa para organizar, pesquisar e conferir extratos bancários, dados SIMBA, RIF, cadastros e registros de acesso/IP/geolocalização **no próprio computador**. A tela abre no navegador, mas o servidor escuta só em `127.0.0.1`. A IA pode ser local (análise automática e Ollama) ou, se a unidade configurar, o Gemini da parceria institucional.
+Programa para organizar, pesquisar e conferir extratos bancários, dados SIMBA, RIF, cadastros e registros de acesso/IP/geolocalização **no próprio computador**. A tela abre no navegador, mas o servidor escuta só em `127.0.0.1`. Fluxo principal: **Importar → Movimentações → Grafo → Análise**. A IA pode ser local (análise automática e Ollama) ou, se a unidade configurar, o Gemini da parceria institucional.
 
 > **ATENÇÃO — este repositório é PÚBLICO.** Nunca envie para o GitHub extratos, RIF, ofícios, planilhas de caso, prints ou qualquer dado real. Os dados ficam somente na pasta `dados/` do computador, que é ignorada pelo Git. Os arquivos de `exemplos/` são fictícios.
 
@@ -36,17 +36,18 @@ Por padrão o programa **não envia dados de caso à internet**. O atualizador c
 
 | Aba | Para quê |
 |---|---|
-| Importar | Envia CSV/TXT, XLSX, ZIP, PDF. Guarda o original com SHA-256, mostra prévia e **mapeamento visual** de colunas; lembra o mapeamento de cada banco. |
-| Pesquisar | **Filtros com lista de todas as opções para marcar**: CPF/CNPJ, nomes (titular e contraparte), contas, bancos, chaves PIX, tipo de operação, descrição, mês, data, IP, cidade, status, arquivo e remessa. Totais, principais origens/destinos, totais por conta, exportação CSV. |
+| Início | Cria ou escolhe o caso. Quatro passos na tela. |
+| 1. Importar | Envia CSV/TXT, XLSX, ZIP, PDF (arquivo ou arrastar). Guarda o original com SHA-256; se for extrato, **os lançamentos já aparecem** em Movimentações. |
+| 2. Movimentações | Lista e totais com **filtros de múltipla escolha**: CPF/CNPJ, nomes, contas, bancos, PIX, tipo, descrição, mês, data, IP, cidade, status, arquivo e remessa. |
 | Pesquisa geral | Lista **tudo** o que foi encontrado em todos os documentos (extratos, cadastros, acessos, RIF, texto de PDF): CPF, CNPJ, nomes, bancos, contas, PIX, ID PIX, e-mails, telefones, IPs, coordenadas, cidades, dispositivos e datas. Marque valores e veja onde cada um aparece (arquivo, página/linha). |
 | IP / Geolocalização | Registros de acesso de qualquer banco: IP, porta, data/hora com fuso original, latitude/longitude, cidade, dispositivo; gráfico de dispersão das coordenadas sem mapa da internet. |
-| Grafo e repasses | Grafo de relações com **filtros na própria tela**, pan e zoom; sequências de repasses por coincidência de identificador, data e valor, sempre rotuladas como **possibilidade**. |
+| 3. Grafo | Mapa de transferências **monta sozinho** (contas e quem enviou/recebeu), pan e zoom; sequências de repasses rotuladas como **possibilidade**. |
 | Duplicatas | Revisão humana de registros repetidos entre abas/arquivos e dos dois lados de transferências. |
 | RIF | Comunicações, envolvidos e ocorrências, **separados** dos extratos e fora dos totais. |
 | PDF / OCR | Texto por página, OCR local opcional (Tesseract/Poppler) e revisão por caixa delimitadora. |
 | Marcar evidências | Retângulo, círculo e seta sobre página/imagem/captura colada (Ctrl+V); a imagem marcada vai para o relatório. |
 | Relatório | DOCX, PDF ou HTML com filtros, alcance, totais, fontes com SHA-256, memória de cálculo com arquivo/linha e ressalvas. |
-| IA e análise | Análise preliminar automática (tráfico, estelionato, lavagem) a partir de extratos, RIF, BO e relatório; chat local (sem Ollama), Ollama em `127.0.0.1`, ou Gemini da parceria (nuvem, opt-in). Veja [docs/IA_LOCAL.md](docs/IA_LOCAL.md). |
+| 4. Análise | Análise preliminar automática ao abrir a aba (tráfico, estelionato, lavagem); chat local, Ollama em `127.0.0.1`, ou Gemini da parceria (nuvem, opt-in, passo a passo da chave na tela). Veja [docs/IA_LOCAL.md](docs/IA_LOCAL.md). |
 
 Regras de cálculo, leiautes e limitações: [docs/MANUAL.md](docs/MANUAL.md) e [docs/LEIAUTES.md](docs/LEIAUTES.md). Segurança: [docs/SEGURANCA.md](docs/SEGURANCA.md).
 

@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 3.4.0
+- Interface mais simples para quem não é de informática: abas numeradas (Importar → Movimentações → Grafo → Análise), o restante em **Mais**.
+- **Importar:** escolha o arquivo (ou arraste) e os lançamentos aparecem na lista em seguida. Perfil de banco reconhecido já vem com as colunas preenchidas.
+- **Análise:** ao abrir a aba, a análise preliminar monta sozinha neste computador (não precisa clicar antes).
+- **Gemini:** passo a passo na tela (pedir a chave à TI ou gerar em aistudio.google.com/apikey), um botão **Salvar e testar**, opções de Vertex escondidas.
+- **Grafo:** desenha sozinho ao abrir a aba; setas curvas com valor; fundo escuro; estado vazio explicando o que fazer.
+
 ## 3.3.2
 - Depois de atualizar, a chave de sessão é reaproveitada: a aba do navegador deixa de mostrar «Chave de sessão inválida». Se ainda aparecer, a página explica para fechar a aba velha e abrir pelo atalho.
 

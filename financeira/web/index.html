@@ -10,65 +10,79 @@
 </head>
 <body>
 <header>
-  <div class="marca"><b>Análise Bancária Local</b> <span id="versao"></span><br><small>Delegacia de Polícia de Mamborê - uso local; Gemini só com autorização</small></div>
+  <div class="marca"><b>Análise Bancária Local</b> <span id="versao"></span><br><small>Delegacia de Polícia de Mamborê — só neste computador</small></div>
   <div class="topo-dir">
     <button id="btn-atu" class="primario" title="Consulta o GitHub e, se houver versão nova, pergunta e atualiza neste computador. Nenhum dado de caso é enviado.">Atualizar programa</button>
     <label class="mini" title="Ao abrir, avisa se o GitHub tiver versão nova. Nenhum dado de caso é enviado."><input type="checkbox" id="atu-auto"> avisar ao abrir</label>
-    <label>Usuário <input id="usuario" placeholder="seu nome" size="14"></label>
+    <label>Seu nome <input id="usuario" placeholder="ex.: João" size="14"></label>
     <label>Caso <select id="caso"></select></label>
   </div>
 </header>
 <div id="banner-atu"></div>
 <nav id="abas">
-  <button data-aba="casos">Casos</button>
-  <button data-aba="importar">Importar</button>
-  <button data-aba="fontes">Fontes</button>
-  <button data-aba="pesquisar">Pesquisar</button>
-  <button data-aba="geral">Pesquisa geral</button>
-  <button data-aba="acessos">IP / Geolocalização</button>
-  <button data-aba="grafo">Grafo e repasses</button>
-  <button data-aba="duplicatas">Duplicatas</button>
-  <button data-aba="rif">RIF</button>
-  <button data-aba="documentos">PDF / OCR</button>
-  <button data-aba="evidencias">Marcar evidências</button>
+  <button data-aba="casos">Início</button>
+  <button data-aba="importar">1. Importar</button>
+  <button data-aba="pesquisar">2. Movimentações</button>
+  <button data-aba="grafo">3. Grafo</button>
+  <button data-aba="ia">4. Análise</button>
   <button data-aba="relatorio">Relatório</button>
-  <button data-aba="ia">IA e análise</button>
-  <button data-aba="conhecimento">Aprimorar a IA</button>
-  <button data-aba="auditoria">Auditoria</button>
+  <div class="nav-mais" id="nav-mais">
+    <button type="button" id="btn-nav-mais" aria-expanded="false">Mais ▾</button>
+    <div class="nav-mais-painel oculto" id="nav-mais-painel">
+      <button data-aba="fontes">Fontes (arquivos)</button>
+      <button data-aba="geral">Pesquisa geral</button>
+      <button data-aba="acessos">IP / Geolocalização</button>
+      <button data-aba="duplicatas">Duplicatas</button>
+      <button data-aba="rif">RIF</button>
+      <button data-aba="documentos">PDF / OCR</button>
+      <button data-aba="evidencias">Marcar evidências</button>
+      <button data-aba="conhecimento">Aprimorar a IA</button>
+      <button data-aba="auditoria">Auditoria</button>
+    </div>
+  </div>
 </nav>
 <main>
 
 <section id="aba-casos" class="aba">
-  <h2>Casos</h2>
+  <h2>Início</h2>
+  <p class="lead">Quatro passos: criar o caso, importar o extrato, ver as movimentações e o mapa de transferências, depois ler a análise. Não precisa configurar nada de internet para isso.</p>
+  <div id="caso-resumo"></div>
   <div class="cartao">
     <h3>Novo caso</h3>
-    <input id="novo-caso-nome" placeholder="Nome do caso (ex.: Teste fictício)" size="40">
+    <input id="novo-caso-nome" placeholder="Nome do caso (ex.: Inquérito 12/2026)" size="40">
     <input id="novo-caso-desc" placeholder="Descrição (opcional)" size="40">
     <button id="btn-criar-caso" class="primario">Criar caso</button>
   </div>
   <div id="lista-casos"></div>
-  <div class="cartao" id="cartao-perm">
-    <h3>Permissões do caso selecionado</h3>
+  <details class="cartao" id="cartao-perm">
+    <summary>Permissões da equipe (opcional)</summary>
     <p class="nota">Papéis: leitor (consulta), analista (importa e marca), revisor (decide duplicatas e desfaz importações), administrador. A identificação é declarada; proteja o computador com as credenciais da unidade.</p>
     <input id="perm-usuario" placeholder="usuário"> <select id="perm-papel"><option>leitor</option><option>analista</option><option>revisor</option><option>administrador</option><option value="remover">remover</option></select>
     <button id="btn-perm">Aplicar</button>
     <div id="perm-lista"></div>
-  </div>
-  <div class="cartao">
-    <h3>Remessas (uma por banco/resposta recebida)</h3>
+  </details>
+  <details class="cartao">
+    <summary>Remessas — uma por banco (opcional)</summary>
     <input id="rem-rotulo" placeholder="Rótulo (ex.: Banco X - ofício 12/2026)" size="40"> <input id="rem-inst" placeholder="Instituição">
     <button id="btn-remessa">Criar remessa</button>
     <div id="rem-lista"></div>
-  </div>
+  </details>
 </section>
 
 <section id="aba-importar" class="aba">
-  <h2>Importar arquivo</h2>
+  <h2>1. Importar o extrato</h2>
+  <p class="lead">Escolha o arquivo. O programa lê e, se for movimentação, já mostra os lançamentos na etapa 2. O original fica só neste computador, com SHA-256.</p>
   <div class="cartao">
-    <p>Aceita CSV/TXT delimitado, XLSX, ZIP (pacotes bancários, SIMBA bruto, RIF) e PDF. O original é guardado sem alteração, com SHA-256.</p>
-    <label>Remessa <select id="imp-remessa"><option value="">(sem remessa)</option></select></label>
-    <input type="file" id="imp-arquivo">
-    <button id="btn-enviar" class="primario">Enviar e pré-visualizar</button>
+    <label class="soltar" id="imp-soltar">
+      <input type="file" id="imp-arquivo">
+      <span class="soltar-ico">⬆</span>
+      <strong>Clique para escolher o arquivo</strong>
+      <span class="nota">ou arraste para cá · CSV, Excel, ZIP do banco, PDF ou RIF</span>
+    </label>
+    <div class="linha-filtros">
+      <label>Remessa (opcional) <select id="imp-remessa"><option value="">(sem remessa)</option></select></label>
+      <button id="btn-enviar" class="primario">Enviar arquivo</button>
+    </div>
     <div id="imp-progresso"></div>
   </div>
   <div id="imp-previa"></div>
@@ -82,8 +96,8 @@
 </section>
 
 <section id="aba-pesquisar" class="aba">
-  <h2>Pesquisar movimentações</h2>
-  <p class="nota">Clique em cada filtro para ver <b>todas</b> as opções encontradas nos documentos e marque as desejadas. Dentro de um filtro vale "qualquer um"; entre filtros vale "todos".</p>
+  <h2>2. Movimentações</h2>
+  <p class="lead">Depois de importar, os lançamentos aparecem aqui. Use os filtros só se quiser recortar a lista.</p>
   <div id="facetas" class="facetas"></div>
   <div class="linha-filtros">
     <label>De <input type="date" id="f-data-ini"></label>
@@ -91,7 +105,7 @@
     <label>Valor mín. <input id="f-vmin" size="9" placeholder="0,00"></label>
     <label>Valor máx. <input id="f-vmax" size="9"></label>
     <label>Texto <input id="f-texto" size="16" placeholder="nome, CPF, histórico"></label>
-    <button id="btn-pesquisar" class="primario">Pesquisar</button>
+    <button id="btn-pesquisar" class="primario">Atualizar lista</button>
     <button id="btn-limpar">Limpar filtros</button>
     <button id="btn-exportar">Exportar CSV</button>
   </div>
@@ -119,11 +133,12 @@
 </section>
 
 <section id="aba-grafo" class="aba">
-  <h2>Grafo de relações</h2>
-  <p class="aviso">As setas mostram a direção dos registros. Não comprovam que um crédito específico financiou um débito específico. Arraste para mover, role o mouse para aproximar/afastar.</p>
-  <div class="cartao">
-    <p class="nota">Filtros desta tela (independentes da aba Pesquisar, a menos que você marque a opção). Clique em cada lista e marque as opções.</p>
-    <label><input type="checkbox" id="g-usar-pesquisa"> usar os filtros atuais da aba Pesquisar</label>
+  <h2>3. Grafo de transferências</h2>
+  <p class="lead">O mapa monta sozinho com as contas do extrato e quem enviou ou recebeu. Arraste para mover, role o mouse para aproximar. As setas mostram a direção dos registros — não comprovam que um crédito financiou um débito.</p>
+  <details class="cartao avancado">
+    <summary>Filtros do grafo (só se quiser recortar)</summary>
+    <p class="nota">Independentes da aba Movimentações, a menos que você marque a opção. Clique em cada lista e marque as opções.</p>
+    <label><input type="checkbox" id="g-usar-pesquisa"> usar os filtros atuais da aba Movimentações</label>
     <div id="grafo-facetas" class="facetas"></div>
     <div class="linha-filtros">
       <label>De <input type="date" id="gf-data-ini"></label>
@@ -135,22 +150,22 @@
       <label>Volume mín. da seta <input id="gf-minvol" size="9" placeholder="0,00"></label>
       <label>Destacar <input id="gf-busca" size="18" placeholder="nome ou CPF no grafo"></label>
     </div>
-    <button id="btn-grafo" class="primario">Gerar grafo</button>
-    <button id="btn-grafo-limpar">Limpar filtros do grafo</button>
+    <button id="btn-grafo" class="primario">Atualizar grafo</button>
+    <button id="btn-grafo-limpar">Limpar filtros</button>
     <button id="btn-grafo-png">Baixar PNG</button>
     <span id="grafo-filtros-ativos" class="chips"></span>
-  </div>
+  </details>
   <div id="grafo-area"></div>
-  <h2>Sequências de repasses (possibilidades)</h2>
-  <div class="cartao">
+  <details class="cartao avancado">
+    <summary>Sequências de repasses (possibilidade — opcional)</summary>
     <label>Início: CPF/CNPJ do titular <input id="s-inicio" size="20"></label>
     <label>Janela (dias) <input id="s-janela" value="3" size="3"></label>
     <label>Tolerância de valor (%) <input id="s-tol" value="0" size="3"></label>
     <label>Profundidade <input id="s-prof" value="3" size="2"></label>
     <label><input type="checkbox" id="s-nome"> aceitar coincidência só de nome (hipótese)</label>
     <button id="btn-seq" class="primario">Procurar</button>
-  </div>
-  <div id="seq-res"></div>
+    <div id="seq-res"></div>
+  </details>
 </section>
 
 <section id="aba-duplicatas" class="aba">
@@ -195,37 +210,57 @@
 
 <section id="aba-relatorio" class="aba">
   <h2>Relatório (rascunho com fontes e memória de cálculo)</h2>
-  <p class="nota">Usa os filtros atuais da aba Pesquisar. Contém totais, rankings, fontes com SHA-256, memória de cálculo com arquivo/linha de cada lançamento e ressalvas.</p>
+  <p class="nota">Usa os filtros atuais da aba Movimentações. Contém totais, rankings, fontes com SHA-256, memória de cálculo com arquivo/linha de cada lançamento e ressalvas.</p>
   <textarea id="rel-obs" rows="6" placeholder="Observações do analista"></textarea>
-  <label><input type="checkbox" id="rel-analise"> incluir a análise preliminar automática (se já tiver sido gerada na aba IA)</label>
+  <label><input type="checkbox" id="rel-analise"> incluir a análise preliminar automática (se já tiver sido gerada na aba Análise)</label>
   <div id="rel-imagens"></div>
   <button class="primario" data-formato="docx">Gerar DOCX</button> <button data-formato="pdf">Gerar PDF</button> <button data-formato="html">Gerar HTML</button>
 </section>
 
 <section id="aba-ia" class="aba">
-  <h2>IA, análise preliminar e Gemini</h2>
-  <p class="aviso">A análise preliminar é calculada pelo próprio programa (sem internet): valores semelhantes, destino do dinheiro da vítima, saques/cartão, débito imediato. O chat pode usar essa análise, o Ollama só em 127.0.0.1, ou o Gemini da parceria institucional (nuvem Google) se você configurar a chave e escolher um modelo Gemini. Tudo é rascunho: confira fonte, página, linha e cálculos.</p>
+  <h2>4. Análise e Gemini</h2>
+  <p class="lead">A análise preliminar é calculada neste computador, sem internet: valores semelhantes, destino do dinheiro da vítima, saques e cartão. O chat usa essa análise. O Gemini da parceria é opcional — só envia dados se você colar a chave e autorizar.</p>
 
   <div class="cartao gemini-form">
-    <h3>Gemini (parceria institucional da Polícia Civil)</h3>
-    <p class="aviso">Opcional e desligado por padrão. Se você escolher um modelo Gemini no chat, trechos do caso (totais, amostra de lançamentos, texto de BO/relatório) saem deste computador para os servidores do Google. Use só a chave da parceria da unidade. A chave fica em dados/gemini.json (fora do Git) ou em ANALISE_GEMINI_CHAVE. A análise preliminar automática continua neste computador.</p>
-    <p id="gemini-status" class="nota">Gemini desligado. Sem chave, nada é enviado à nuvem.</p>
-    <label>Chave da API <input id="gemini-chave" type="password" autocomplete="off" placeholder="cole a chave da parceria (não vai para o Git)"></label>
-    <label>Modelo preferido <input id="gemini-modelo" placeholder="gemini-2.5-flash" size="28"></label>
-    <label>Endpoint (se a unidade usar Vertex; senão deixe em branco)<br>
-      <input id="gemini-endpoint" size="70" placeholder="https://generativelanguage.googleapis.com/v1beta"></label>
+    <h3>Gemini da Polícia Civil (opcional)</h3>
+    <p id="gemini-status" class="status-gemini">Gemini desligado. Sem chave, nada é enviado à nuvem.</p>
+    <ol class="passos">
+      <li>
+        <b>Peça a chave à TI da unidade</b>
+        <p>A Polícia Civil tem parceria com o Gemini. Quem cuida da informática da delegacia deve fornecer a chave. Você não precisa criar conta Google pessoal.</p>
+        <p>Se a TI pediu para você gerar a chave no Google AI Studio, faça assim (precisa de internet neste passo):</p>
+        <ol class="sub">
+          <li>Abra <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.</li>
+          <li>Entre com a <b>conta institucional</b> que a TI indicar (não use e-mail pessoal).</li>
+          <li>Clique em <b>Create API key</b> (Criar chave de API).</li>
+          <li>Copie a chave — em geral começa com <code>AIza</code>.</li>
+        </ol>
+      </li>
+      <li><b>Cole a chave</b> no campo abaixo. Ela fica só neste computador (pasta dados), não vai para o Git nem para outros casos automaticamente.</li>
+      <li>Marque <b>autorizo o envio</b>. Só então trechos do caso (totais, amostra de lançamentos, texto de BO) saem desta máquina para os servidores do Google.</li>
+      <li>Clique em <b>Salvar e testar</b>. O teste manda só a palavra «ok», sem dados do caso. Se der certo, no chat deixe selecionado <b>Gemini</b> e pergunte.</li>
+    </ol>
+    <div class="gemini-chave-linha">
+      <label>Chave da API <input id="gemini-chave" type="password" autocomplete="off" placeholder="cole aqui a chave que a TI passou"></label>
+    </div>
     <label><input type="checkbox" id="gemini-ok"> Autorizo o envio dos dados deste caso ao Gemini da parceria institucional</label>
     <div>
-      <button id="btn-gemini-salvar" class="primario">Salvar chave</button>
-      <button id="btn-gemini-teste">Testar conexão (sem dados do caso)</button>
+      <button id="btn-gemini-salvar" class="primario">Salvar e testar</button>
       <button id="btn-gemini-remover">Remover chave deste computador</button>
       <span id="gemini-info" class="nota"></span>
     </div>
+    <details class="avancado">
+      <summary>Opções avançadas (modelo e Vertex — só se a TI pedir)</summary>
+      <label>Modelo preferido <input id="gemini-modelo" placeholder="gemini-2.5-flash" size="28"></label>
+      <label>Endpoint Vertex (deixe em branco se usar o AI Studio)<br>
+        <input id="gemini-endpoint" size="70" placeholder="https://generativelanguage.googleapis.com/v1beta"></label>
+      <button type="button" id="btn-gemini-teste">Só testar conexão (sem salvar de novo)</button>
+    </details>
   </div>
 
   <div class="cartao">
-    <h3>Contexto do caso (BO, relatório, hipótese)</h3>
-    <p class="nota">Importe o boletim de ocorrência e o relatório de investigação como PDF na aba Importar (tipo «extrair texto») e marque o papel abaixo. Informe vítima e investigado para o rastreio no estelionato.</p>
+    <h3>Quem é vítima e investigado (melhora a análise de golpe)</h3>
+    <p class="nota">Importe o boletim e o relatório como PDF na etapa Importar (tipo «extrair texto») e marque o papel abaixo. A análise preliminar já tenta montar sozinha ao abrir esta aba.</p>
     <label>Hipótese <select id="ia-hipotese">
       <option value="auto">detectar no BO/RIF (tráfico, estelionato, lavagem)</option>
       <option value="trafico">tráfico de drogas</option>
@@ -239,18 +274,18 @@
       <div><label>Investigados (um por linha)</label><textarea id="ia-investigados" rows="3" placeholder="JOAO FICTICIO&#10;000.000.001-91"></textarea></div>
     </div>
     <div id="ia-docs" class="nota"></div>
-    <button id="btn-analise" class="primario">Gerar análise preliminar</button>
-    <button id="btn-contexto">Salvar contexto sem gerar</button>
+    <button id="btn-analise" class="primario">Gerar / atualizar análise</button>
+    <button id="btn-contexto">Salvar nomes sem gerar</button>
   </div>
   <div id="ia-analise"></div>
 
   <div class="cartao">
-    <h3>Chat</h3>
-    <p class="nota">Sem modelo: responde com a análise calculada. Ollama local: redige neste computador. Gemini: redige na nuvem da parceria (os dados desta pergunta saem da máquina). Exemplos: «para onde foi o dinheiro da vítima?», «há valores semelhantes de tráfico?», «essa conta tem uso de cartão e saque ou só passa PIX?»</p>
+    <h3>Perguntar sobre o caso</h3>
+    <p class="nota">Sem modelo: responde com a análise já calculada. Ollama: redige neste computador. Gemini: redige na nuvem da parceria (os dados desta pergunta saem da máquina).</p>
     <button id="btn-modelos">Verificar modelos</button>
     <select id="ia-modelo"><option value="">(análise local — sem nuvem)</option></select>
     <span id="ia-info" class="nota"></span>
-    <div><label><input type="radio" name="ia-alvo" value="mov" checked> Movimentações (filtros da Pesquisa)</label>
+    <div><label><input type="radio" name="ia-alvo" value="mov" checked> Movimentações (filtros da lista)</label>
          <label><input type="radio" name="ia-alvo" value="doc"> Documento PDF <select id="ia-doc"></select></label>
          <label><input type="checkbox" id="ia-conh" checked> usar base de conhecimento local</label>
          <label><input type="checkbox" id="ia-gerar" checked> atualizar a análise automática a cada pergunta</label></div>

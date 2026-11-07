@@ -2,16 +2,16 @@
 
 ## Fluxo recomendado
 
-1. **Casos** → crie o caso, informe seu nome no topo e, se necessário, cadastre os papéis da equipe (leitor, analista, revisor, administrador).
-2. **Remessas** → crie uma remessa por resposta de banco (ex.: "Banco X — ofício 12/2026"). Assim as chaves internas de cada banco nunca se misturam.
-3. **Importar** → envie o arquivo. O original é guardado sem alteração em `dados/casos/caso_N/originais/` com SHA-256. Arquivo idêntico ao já recebido é recusado.
+1. **Início** → informe seu nome no topo, crie o caso (e, se necessário, os papéis da equipe: leitor, analista, revisor, administrador).
+2. **Remessas** (em Início, opcional) → uma remessa por resposta de banco (ex.: "Banco X — ofício 12/2026"). Assim as chaves internas de cada banco nunca se misturam.
+3. **1. Importar** → escolha ou arraste o arquivo. O original é guardado sem alteração em `dados/casos/caso_N/originais/` com SHA-256. Arquivo idêntico ao já recebido é recusado. Se for extrato, os lançamentos **já aparecem** em **2. Movimentações**.
 4. Na prévia, escolha o **tipo de dado**:
    - *Extrato / movimentação* — gera lançamentos e entra nos totais;
    - *Registros de acesso, IP e geolocalização* — nunca vira transação;
    - *Dados cadastrais / titulares* — nunca vira transação;
    - *RIF* — tabelas próprias, nunca vira transação.
 5. Confira o mapeamento de cada coluna (as sugestões vêm do nome da coluna ou de um perfil já aprendido), marque a confirmação e importe. Se tiver os valores de controle do documento do banco (total de créditos/débitos/linhas), informe-os: o relatório de importação diz se conferem.
-6. **Pesquisar** → clique em cada filtro e marque as opções. Cada lista mostra todos os valores existentes com a quantidade de lançamentos. Dentro de um filtro vale "qualquer um"; entre filtros, "todos".
+6. **2. Movimentações** → a lista abre sozinha depois da importação. Clique em cada filtro só se quiser recortar. Cada lista mostra todos os valores existentes com a quantidade de lançamentos. Dentro de um filtro vale "qualquer um"; entre filtros, "todos".
 7. **Duplicatas** → revise os pares apontados antes de usar totais de várias contas/arquivos.
 8. **Relatório** → gere o rascunho com os mesmos filtros. Confira a memória de cálculo.
 
@@ -36,17 +36,17 @@ Reúne identificadores de todas as fontes: extratos (lançamento e origem/destin
 
 ## Grafo e sequências
 
-- Grafo agregado: contas dos extratos (azul) e contrapartes (verde); setas na direção dos registros; espessura proporcional ao valor. Ligação roxa = mesmo CPF/CNPJ do titular; amarela = hipótese só por nome.
-- **Filtros na própria aba** (pessoa, conta, valor, período, texto, volume mínimo da seta, quantidade máxima de nós). Opcionalmente reutiliza os filtros da Pesquisa.
-- **Mover e zoom:** arraste o fundo para deslocar; role o mouse (ou os botões +/−) para aproximar e afastar; ⊡ volta ao enquadramento. Clique no nó para ver o rótulo.
+- O grafo **monta sozinho** ao abrir a aba. Contas do extrato (dourado) e quem enviou/recebeu (verde-água); setas na direção dos registros, com o valor nas principais; espessura proporcional ao volume. Ligação lilás = mesmo CPF/CNPJ do titular; dourada tracejada = hipótese só por nome.
+- **Filtros** (recolhidos): pessoa, conta, valor, período, texto, volume mínimo da seta, quantidade máxima de nós. Opcionalmente reutiliza os filtros das Movimentações.
+- **Mover e zoom:** arraste o fundo para deslocar; role o mouse (ou os botões +/−) para aproximar e afastar; ⊡ volta ao enquadramento. Clique no círculo para ver o rótulo.
 - Sequências: a partir do CPF/CNPJ de um titular, procura débitos a pessoas que são titulares de outras contas do caso e, nessas contas, débitos posteriores dentro da janela de dias com valor até o recebido (mais a tolerância). Cada elo mostra fonte e linha e indica se existe o crédito correspondente na conta de destino. É sempre **possibilidade**: não demonstra que o mesmo dinheiro foi repassado.
 
-## Análise preliminar e chat (aba IA)
+## Análise preliminar e chat (aba 4. Análise)
 
 1. Importe extratos normalmente. Importe o **boletim de ocorrência** e o **relatório de investigação** como PDF → Extrair texto, marcando o papel (BO / relatório).
-2. Na aba **IA e análise**, informe a hipótese (tráfico, estelionato, lavagem ou detectar no texto), a vítima (nome/CPF) e o investigado.
-3. **Gerar análise preliminar** calcula, sem Ollama: valores semelhantes, destino do dinheiro da vítima, saques/cartão vs conta de passagem, débito imediato.
-4. **Perguntar** abre um chat. Sem modelo, a resposta vem dessa análise. Com Ollama local, o modelo redige neste computador. Com Gemini da parceria (chave + autorização + modelo Gemini no seletor), a pergunta vai à nuvem Google; o programa avisa isso na resposta. Enter envia; Shift+Enter quebra a linha.
+2. Abra **4. Análise**: a análise preliminar **monta sozinha** neste computador (valores semelhantes, destino do dinheiro da vítima, saques/cartão vs conta de passagem, débito imediato). Informe vítima e investigado se for golpe, para melhorar o rastreio.
+3. **Perguntar** abre um chat. Sem modelo, a resposta vem dessa análise. Com Ollama local, o modelo redige neste computador. Com Gemini da parceria (chave + autorização + modelo Gemini no seletor), a pergunta vai à nuvem Google; o programa avisa isso na resposta. Enter envia; Shift+Enter quebra a linha.
+4. Para o Gemini: peça a chave à TI da unidade ou, se a TI pedir, gere em [aistudio.google.com/apikey](https://aistudio.google.com/apikey) com a conta institucional; cole, marque a autorização e clique em **Salvar e testar**.
 
 ## Atualizar o programa
 
