@@ -37,7 +37,16 @@ Reúne identificadores de todas as fontes: extratos (lançamento e origem/destin
 ## Grafo e sequências
 
 - Grafo agregado: contas dos extratos (azul) e contrapartes (verde); setas na direção dos registros; espessura proporcional ao valor. Ligação roxa = mesmo CPF/CNPJ do titular; amarela = hipótese só por nome.
+- **Filtros na própria aba** (pessoa, conta, valor, período, texto, volume mínimo da seta, quantidade máxima de nós). Opcionalmente reutiliza os filtros da Pesquisa.
+- **Mover e zoom:** arraste o fundo para deslocar; role o mouse (ou os botões +/−) para aproximar e afastar; ⊡ volta ao enquadramento. Clique no nó para ver o rótulo.
 - Sequências: a partir do CPF/CNPJ de um titular, procura débitos a pessoas que são titulares de outras contas do caso e, nessas contas, débitos posteriores dentro da janela de dias com valor até o recebido (mais a tolerância). Cada elo mostra fonte e linha e indica se existe o crédito correspondente na conta de destino. É sempre **possibilidade**: não demonstra que o mesmo dinheiro foi repassado.
+
+## Análise preliminar e chat (aba IA)
+
+1. Importe extratos normalmente. Importe o **boletim de ocorrência** e o **relatório de investigação** como PDF → Extrair texto, marcando o papel (BO / relatório).
+2. Na aba **IA e análise**, informe a hipótese (tráfico, estelionato, lavagem ou detectar no texto), a vítima (nome/CPF) e o investigado.
+3. **Gerar análise preliminar** calcula, sem Ollama: valores semelhantes, destino do dinheiro da vítima, saques/cartão vs conta de passagem, débito imediato.
+4. **Perguntar** abre um chat. Sem Ollama, a resposta vem dessa análise. Com Ollama local, o modelo redige com os números já calculados. Enter envia; Shift+Enter quebra a linha.
 
 ## Desfazer e auditoria
 

@@ -139,10 +139,13 @@ class App:
                 if f["tipo"] != "pdf":
                     raise ValueError("Use um arquivo PDF.")
                 extrato_pdf.importar(imp, cam)
+                imp.b.con.execute("UPDATE fontes SET papel=? WHERE id=?", ("extrato", f["id"]))
             elif adaptador == "pdf_texto":
                 if f["tipo"] != "pdf":
                     raise ValueError("Use um arquivo PDF.")
                 documentos.extrair_texto(imp, cam)
+                papel = opcoes.get("papel") or ("rif" if opcoes.get("rif") else "documento")
+                imp.b.con.execute("UPDATE fontes SET papel=? WHERE id=?", (papel, f["id"]))
             else:
                 raise ValueError("adaptador desconhecido: %s" % adaptador)
         except Exception as e:

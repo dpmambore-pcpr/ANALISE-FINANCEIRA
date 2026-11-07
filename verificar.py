@@ -23,12 +23,12 @@ def main():
         print("Busca de texto (FTS5): indisponível - a base de conhecimento usa busca simples")
     o = documentos.ocr_disponivel()
     print("OCR local: %s" % ("disponível (%s)" % ", ".join(o["idiomas"]) if o["disponivel"] else "não instalado (opcional)"))
-    try:
-        m = ia.modelos()
+    m = ia.modelos()
+    if m.get("disponivel") is False:
+        print("Ollama local: não encontrado (opcional) - %s" % m.get("erro"))
+    else:
         print("Ollama local: %s, modelos: %s%s" % (m["versao"], ", ".join(m["modelos"]) or "nenhum",
                                                   "; bloqueados (nuvem): " + ", ".join(m["bloqueados_nuvem"]) if m["bloqueados_nuvem"] else ""))
-    except ia.ErroIA as e:
-        print("Ollama local: não encontrado (opcional) - %s" % e)
     print("\nTestes automatizados (dados fictícios):")
     suite = unittest.defaultTestLoader.discover(os.path.join(RAIZ, "testes"), pattern="test_*.py", top_level_dir=os.path.join(RAIZ, "testes"))
     r = unittest.TextTestRunner(verbosity=1).run(suite)

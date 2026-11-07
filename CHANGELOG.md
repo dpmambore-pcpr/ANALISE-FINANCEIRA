@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 3.2.0
+- **Grafo:** filtros na própria tela (pessoa, conta, valor, período, volume mínimo, quantidade de nós), pan (arrastar) e zoom (roda do mouse e botões +/−).
+- **Análise preliminar automática** (funciona sem Ollama): BO e relatório de investigação como PDF com papel marcado; hipótese de tráfico (valores semelhantes, muitos remetentes), estelionato (destino do dinheiro da vítima após o crédito, saque/PIX/cartão) e lavagem (débito imediato, conta de passagem vs uso efetivo).
+- **Chat da IA:** conversa com histórico; se o Ollama não estiver no ar, o programa responde com a análise calculada. Com Ollama local, o modelo redige em cima desses números. Modelos são verificados ao abrir a aba (não é mais preciso clicar antes de perguntar).
+- Relatório pode incluir a análise preliminar já gerada.
+
 ## 3.1.1
 - Importação de PDF **EXTRATO DETALHADO** (texto selecionável): reconhece o layout, importa os lançamentos com página/linha e confere totais de créditos/débitos de cada conta com os do próprio relatório.
 

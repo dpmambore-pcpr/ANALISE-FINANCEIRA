@@ -4,7 +4,8 @@
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const estado = { caso: null, filtros: {}, facetas: [], fontes: [], geralSel: {}, acessosFiltros: {}, previa: null, fonteAtual: null };
+const estado = { caso: null, filtros: {}, facetas: [], fontes: [], geralSel: {}, acessosFiltros: {}, previa: null, fonteAtual: null,
+  gFiltros: {}, conversaId: null, grafoCtrl: null };
 
 function usuario() { return $("#usuario").value.trim(); }
 
@@ -60,7 +61,8 @@ function abrirAba(nome) {
   localStorage.setItem("aba", nome);
   const carregar = { fontes: carregarFontes, pesquisar: () => estado.caso && carregarFacetas(), duplicatas: carregarDuplicatas,
     rif: carregarRif, documentos: carregarDocs, evidencias: carregarEvidencias, relatorio: carregarRelImagens,
-    conhecimento: carregarConhecimento, auditoria: carregarAuditoria, acessos: carregarAcessos, ia: carregarDocsIA, casos: carregarCasos };
+    conhecimento: carregarConhecimento, auditoria: carregarAuditoria, acessos: carregarAcessos, ia: carregarIA,
+    grafo: carregarGrafoFiltros, casos: carregarCasos };
   if (carregar[nome] && (estado.caso || nome === "casos" || nome === "conhecimento")) carregar[nome]().catch((e) => console.error(e));
 }
 
@@ -136,17 +138,26 @@ async function prepararImportacao(fonteId, aba, linhaCab) {
       ${ed.contas.map((c) => `<tr><td>${esc(c.titular)}</td><td>${esc(c.doc)}</td><td>${esc(c.banco)} ${esc(c.banco_nome)}</td><td>${esc(c.agencia)}</td><td>${esc(c.conta)}</td><td>${esc(c.tipo)}</td><td>${c.lancamentos}</td><td>${esc(c.creditos)}</td><td>${esc(c.debitos)}</td></tr>`).join("")}</table>
       <p class="aviso">Este relatório é gerado por sistema de análise, não é o documento original do banco. Os totais de créditos/débitos de cada conta serão conferidos com os informados no próprio PDF.</p>
       <button class="primario" id="btn-imp-pdf-ext">Importar lançamentos deste extrato</button>
+      <label>Se for só texto: papel <select id="pdf-papel"><option value="documento">documento</option><option value="boletim">boletim de ocorrência</option><option value="relatorio_investigacao">relatório de investigação</option></select></label>
       <button id="btn-imp-pdf">Somente extrair o texto (Pesquisa geral)</button></div>`;
     $("#btn-imp-pdf-ext").onclick = () => executarImportacao(fonteId, "pdf_extrato", null, {});
-    $("#btn-imp-pdf").onclick = () => executarImportacao(fonteId, "pdf_texto", null, {});
+    $("#btn-imp-pdf").onclick = () => executarImportacao(fonteId, "pdf_texto", null, { papel: $("#pdf-papel").value });
     return;
   }
   if (p.tipo_arquivo === "pdf") {
-    alvo.innerHTML = `<div class="cartao"><h3>PDF</h3>${p.aviso_leitura ? `<div class="erro">${esc(p.aviso_leitura)}</div>` : ""}<p>O texto selecionável será extraído por página e os identificadores (CPF, PIX, IP...) ficarão disponíveis na Pesquisa geral. Se for um \"EXTRATO DETALHADO\" com texto selecionável, o programa reconhece a tabela e oferece importar os lançamentos; outros layouts ou PDF digitalizado (OCR) não viram lançamentos automaticamente.</p>
+    alvo.innerHTML = `<div class="cartao"><h3>PDF</h3>${p.aviso_leitura ? `<div class="erro">${esc(p.aviso_leitura)}</div>` : ""}<p>O texto selecionável será extraído por página e os identificadores (CPF, PIX, IP...) ficarão disponíveis na Pesquisa geral. Marque o papel do documento para a análise preliminar (BO, relatório de investigação, RIF).</p>
       <p class="nota">OCR local: ${p.ocr.disponivel ? "disponível" : "não instalado (veja ferramentas_ocr/LEIA.txt)"}</p>
-      <button class="primario" id="btn-imp-pdf">Extrair texto</button> <button id="btn-imp-pdf-rif">É um RIF em PDF? Extrair texto como documento do RIF</button></div>`;
-    $("#btn-imp-pdf").onclick = () => executarImportacao(fonteId, "pdf_texto", null, {});
-    $("#btn-imp-pdf-rif").onclick = () => executarImportacao(fonteId, "pdf_texto", null, { rif: true });
+      <label>Papel <select id="pdf-papel">
+        <option value="documento">Documento (texto)</option>
+        <option value="boletim">Boletim de ocorrência</option>
+        <option value="relatorio_investigacao">Relatório de investigação</option>
+        <option value="rif">RIF em PDF</option>
+      </select></label>
+      <button class="primario" id="btn-imp-pdf">Extrair texto</button></div>`;
+    $("#btn-imp-pdf").onclick = () => {
+      const papel = $("#pdf-papel").value;
+      executarImportacao(fonteId, "pdf_texto", null, { papel, rif: papel === "rif" });
+    };
     return;
   }
   if (!p.cabecalho) { alvo.innerHTML = '<div class="erro">Tipo de arquivo não suportado para importação. O original continua guardado como fonte.</div>'; return; }
@@ -417,29 +428,115 @@ async function carregarAcessos() {
 $("#btn-acessos").onclick = () => carregarAcessos().catch((e) => alert(e.message));
 
 // ------------------------------------------------------------------ grafo
+function lerFiltrosGrafo() {
+  if ($("#g-usar-pesquisa").checked) return lerFiltrosSimples();
+  const f = Object.assign({}, estado.gFiltros);
+  f.data_ini = $("#gf-data-ini").value || null; f.data_fim = $("#gf-data-fim").value || null;
+  f.valor_min = $("#gf-vmin").value || null; f.valor_max = $("#gf-vmax").value || null; f.texto = $("#gf-texto").value || null;
+  return f;
+}
+function minVolumeCentavos() {
+  const c = ($("#gf-minvol").value || "").trim();
+  if (!c) return 0;
+  const n = Number(c.replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(n) ? Math.round(n * 100) : 0;
+}
+async function carregarGrafoFiltros() {
+  if (!estado.caso) return;
+  const facs = await api("POST", `/api/casos/${exigirCaso()}/facetas`, { filtros: lerFiltrosGrafo() });
+  const cont = $("#grafo-facetas");
+  cont.innerHTML = "";
+  facs.forEach((f) => criarFaceta(cont, f, estado.gFiltros[f.chave], (vals) => { estado.gFiltros[f.chave] = vals; carregarGrafoFiltros(); }));
+}
+$("#btn-grafo-limpar").onclick = () => {
+  estado.gFiltros = {};
+  ["#gf-data-ini", "#gf-data-fim", "#gf-vmin", "#gf-vmax", "#gf-texto", "#gf-busca", "#gf-minvol"].forEach((s) => { if ($(s)) $(s).value = ""; });
+  $("#gf-maxnos").value = 80; $("#g-usar-pesquisa").checked = false;
+  carregarGrafoFiltros().catch((e) => console.error(e));
+};
+function ligarPanZoom(svg) {
+  const cena = svg.querySelector("#grafo-cena");
+  let x = 0, y = 0, s = 1, arr = false, lx = 0, ly = 0;
+  const aplicar = () => cena.setAttribute("transform", `translate(${x} ${y}) scale(${s})`);
+  const zoomEm = (mx, my, fator) => {
+    const ns = Math.min(8, Math.max(0.12, s * fator));
+    x = mx - (mx - x) * ns / s; y = my - (my - y) * ns / s; s = ns; aplicar();
+  };
+  const ponto = (e) => {
+    const r = svg.getBoundingClientRect();
+    const vb = svg.viewBox.baseVal;
+    return [(e.clientX - r.left) * vb.width / r.width, (e.clientY - r.top) * vb.height / r.height];
+  };
+  svg.addEventListener("wheel", (e) => { e.preventDefault(); const [mx, my] = ponto(e); zoomEm(mx, my, e.deltaY < 0 ? 1.18 : 1 / 1.18); }, { passive: false });
+  svg.addEventListener("mousedown", (e) => { if (e.button !== 0) return; arr = true; lx = e.clientX; ly = e.clientY; });
+  window.addEventListener("mousemove", (e) => {
+    if (!arr) return;
+    const r = svg.getBoundingClientRect(); const vb = svg.viewBox.baseVal;
+    x += (e.clientX - lx) * vb.width / r.width; y += (e.clientY - ly) * vb.height / r.height;
+    lx = e.clientX; ly = e.clientY; aplicar();
+  });
+  window.addEventListener("mouseup", () => { arr = false; });
+  return {
+    mais: () => zoomEm(svg.viewBox.baseVal.width / 2, svg.viewBox.baseVal.height / 2, 1.25),
+    menos: () => zoomEm(svg.viewBox.baseVal.width / 2, svg.viewBox.baseVal.height / 2, 0.8),
+    reset: () => { x = 0; y = 0; s = 1; aplicar(); },
+  };
+}
+function destacarGrafo(termo) {
+  const t = (termo || "").toLowerCase();
+  $$("#svg-grafo .no-grafo").forEach((g) => {
+    const ok = !t || (g.dataset.rotulo || "").toLowerCase().includes(t);
+    g.style.opacity = ok ? "1" : ".18";
+    const c = g.querySelector("circle");
+    if (c) c.setAttribute("stroke", ok && t ? "#e0a800" : "none");
+    if (c) c.setAttribute("stroke-width", ok && t ? "4" : "0");
+  });
+}
+$("#gf-busca").addEventListener("input", () => destacarGrafo($("#gf-busca").value));
 $("#btn-grafo").onclick = async () => {
-  const g = await api("POST", `/api/casos/${exigirCaso()}/grafo`, { filtros: lerFiltrosSimples() });
-  const W = 1100, H = 650, nos = g.nos.map((n, i) => Object.assign(n, { x: W / 2 + Math.cos(i * 2.4) * (120 + i * 6), y: H / 2 + Math.sin(i * 2.4) * (90 + i * 4), vx: 0, vy: 0 }));
+  const g = await api("POST", `/api/casos/${exigirCaso()}/grafo`, {
+    filtros: lerFiltrosGrafo(), max_nos: +$("#gf-maxnos").value || 80, min_volume: minVolumeCentavos(),
+  });
+  const W = 1400, H = 900;
+  const nos = g.nos.map((n, i) => Object.assign(n, { x: W / 2 + Math.cos(i * 2.4) * (160 + i * 8), y: H / 2 + Math.sin(i * 2.4) * (110 + i * 5), vx: 0, vy: 0 }));
   const id = Object.fromEntries(nos.map((n) => [n.id, n]));
   const ars = g.arestas.filter((a) => id[a.de] && id[a.para]);
-  for (let it = 0; it < 300; it++) {
-    for (const a of nos) for (const b of nos) { if (a === b) continue; const dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy + 0.01, f = 2500 / d2; a.vx += dx * f / 50; a.vy += dy * f / 50; }
+  for (let it = 0; it < 320; it++) {
+    for (const a of nos) for (const b of nos) { if (a === b) continue; const dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy + 0.01, f = 3200 / d2; a.vx += dx * f / 50; a.vy += dy * f / 50; }
     for (const e of ars) { const a = id[e.de], b = id[e.para], dx = b.x - a.x, dy = b.y - a.y; a.vx += dx * 0.01; a.vy += dy * 0.01; b.vx -= dx * 0.01; b.vy -= dy * 0.01; }
-    for (const n of nos) { n.vx += (W / 2 - n.x) * 0.002; n.vy += (H / 2 - n.y) * 0.002; n.x = Math.max(60, Math.min(W - 60, n.x + n.vx)); n.y = Math.max(30, Math.min(H - 30, n.y + n.vy)); n.vx *= 0.5; n.vy *= 0.5; }
+    for (const n of nos) { n.vx += (W / 2 - n.x) * 0.0015; n.vy += (H / 2 - n.y) * 0.0015; n.x = Math.max(40, Math.min(W - 40, n.x + n.vx)); n.y = Math.max(24, Math.min(H - 24, n.y + n.vy)); n.vx *= 0.5; n.vy *= 0.5; }
   }
   const maxV = Math.max(1, ...ars.map((a) => a.valor));
   const cor = { conta: "#1f3b64", contraparte: "#2e7d32", nao_distribuido: "#999" };
-  let svg = `<svg id="svg-grafo" xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" style="background:#fff;border:1px solid #ccd"><defs><marker id="seta" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#555"/></marker></defs>`;
+  let svg = `<svg id="svg-grafo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><defs><marker id="seta" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#555"/></marker></defs><g id="grafo-cena">`;
   for (const a of ars) { const p = id[a.de], q = id[a.para]; svg += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="${a.nd ? "#bbb" : "#555"}" stroke-dasharray="${a.nd ? "4,3" : ""}" stroke-width="${1 + 5 * a.valor / maxV}" marker-end="url(#seta)" opacity=".6"><title>${esc(a.valor_fmt)} em ${a.n} lançamento(s)</title></line>`; }
   for (const l of g.ligacoes) { const p = id[l.de], q = id[l.para]; svg += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="${l.hipotese ? "#e0a800" : "#7b1fa2"}" stroke-dasharray="2,4" stroke-width="2"><title>${esc(l.tipo)}</title></line>`; }
-  for (const n of nos) svg += `<g><circle cx="${n.x}" cy="${n.y}" r="${n.tipo === "conta" ? 11 : 8}" fill="${cor[n.tipo] || "#555"}"><title>${esc(n.rotulo)} ${esc(n.detalhe || "")} ${esc(n.identificacao || "")}</title></circle><text x="${n.x + 12}" y="${n.y + 4}" font-size="11" font-family="Arial">${esc(String(n.rotulo).slice(0, 38))}</text></g>`;
-  svg += "</svg>";
-  $("#grafo-area").innerHTML = `<div class="aviso">${esc(g.aviso)}</div><p class="nota">Filtros: ${esc(g.filtros.join("; "))}. Azul = conta do extrato; verde = contraparte; linha roxa = mesmo CPF/CNPJ; linha amarela = HIPÓTESE por nome. ${g.omitidos ? g.omitidos + " nós omitidos (menor volume)." : ""}</p>${svg}`;
+  for (const n of nos) svg += `<g class="no-grafo" data-id="${esc(n.id)}" data-rotulo="${esc(n.rotulo)} ${esc(n.detalhe || "")}" style="cursor:pointer"><circle cx="${n.x}" cy="${n.y}" r="${n.tipo === "conta" ? 12 : 8}" fill="${cor[n.tipo] || "#555"}"></circle><text x="${n.x + 14}" y="${n.y + 4}" font-size="11" font-family="Arial">${esc(String(n.rotulo).slice(0, 42))}</text></g>`;
+  svg += "</g></svg>";
+  $("#grafo-filtros-ativos").innerHTML = (g.filtros || []).map((d) => `<span>${esc(d)}</span>`).join("");
+  $("#grafo-area").innerHTML = `<div class="aviso">${esc(g.aviso)}</div><p class="nota">Azul = conta do extrato; verde = contraparte; linha roxa = mesmo CPF/CNPJ; amarela = HIPÓTESE por nome. Arraste para mover; role para zoom. ${g.omitidos ? g.omitidos + " nós omitidos (menor volume)." : ""}</p>
+    <div class="grafo-viewport" id="grafo-viewport">
+      <div class="grafo-ferramentas"><button type="button" id="gz-mais" title="Aproximar">+</button><button type="button" id="gz-menos" title="Afastar">−</button><button type="button" id="gz-reset" title="Ajustar">⊡</button></div>
+      <div class="grafo-detalhe" id="grafo-detalhe">Clique num nó para ver o rótulo. Filtros e zoom não alteram os dados, só a vista.</div>
+      ${svg}
+    </div>`;
+  estado.grafoCtrl = ligarPanZoom($("#svg-grafo"));
+  $("#gz-mais").onclick = () => estado.grafoCtrl.mais();
+  $("#gz-menos").onclick = () => estado.grafoCtrl.menos();
+  $("#gz-reset").onclick = () => estado.grafoCtrl.reset();
+  $$("#svg-grafo .no-grafo").forEach((el) => (el.onclick = (e) => {
+    e.stopPropagation();
+    const n = id[el.dataset.id];
+    if (!n) return;
+    const lig = ars.filter((a) => a.de === n.id || a.para === n.id);
+    $("#grafo-detalhe").innerHTML = `<b>${esc(n.rotulo)}</b> <span class="mini">${esc(n.tipo)} ${esc(n.detalhe || "")} ${esc(n.identificacao || "")}</span><br>${lig.slice(0, 8).map((a) => `${esc(a.valor_fmt)} · ${a.n} lanç.`).join("<br>") || "sem setas visíveis"}`;
+  }));
+  destacarGrafo($("#gf-busca").value);
 };
 $("#btn-grafo-png").onclick = () => {
   const svg = $("#svg-grafo"); if (!svg) return alert("Gere o grafo primeiro.");
   const img = new Image();
-  img.onload = () => { const c = document.createElement("canvas"); c.width = svg.width.baseVal.value; c.height = svg.height.baseVal.value; const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0); const a = document.createElement("a"); a.href = c.toDataURL("image/png"); a.download = "grafo.png"; a.click(); };
+  img.onload = () => { const c = document.createElement("canvas"); c.width = svg.viewBox.baseVal.width; c.height = svg.viewBox.baseVal.height; const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0); const a = document.createElement("a"); a.href = c.toDataURL("image/png"); a.download = "grafo.png"; a.click(); };
   img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svg));
 };
 $("#btn-seq").onclick = async () => {
@@ -562,32 +659,131 @@ async function carregarRelImagens() {
   $("#rel-imagens").innerHTML = evs.length ? "<b>Imagens marcadas:</b><br>" + evs.map((e) => `<label><input type="checkbox" value="${e.id}"> #${e.id} ${esc(e.descricao || "")}</label><br>`).join("") : "";
 }
 $$("#aba-relatorio button[data-formato]").forEach((b) => (b.onclick = () => baixar("POST", `/api/casos/${exigirCaso()}/relatorio`, {
-  formato: b.dataset.formato, filtros: lerFiltrosSimples(), observacoes: $("#rel-obs").value, evidencias: $$("#rel-imagens input:checked").map((i) => +i.value),
+  formato: b.dataset.formato, filtros: lerFiltrosSimples(), observacoes: $("#rel-obs").value,
+  evidencias: $$("#rel-imagens input:checked").map((i) => +i.value), incluir_analise: $("#rel-analise").checked,
 }, "relatorio." + b.dataset.formato).catch((e) => alert(e.message))));
 
 // ------------------------------------------------------------------ IA
-async function carregarDocsIA() {
+function corpoIA() {
+  const alvo = $$("input[name=ia-alvo]").find((i) => i.checked);
+  return {
+    modelo: $("#ia-modelo").value || null,
+    pergunta: $("#ia-pergunta").value,
+    filtros: lerFiltrosSimples(),
+    fonte_id: alvo && alvo.value === "doc" ? +$("#ia-doc").value : null,
+    usar_conhecimento: $("#ia-conh").checked,
+    gerar_analise: $("#ia-gerar").checked,
+    conversa_id: estado.conversaId,
+    hipotese_crime: $("#ia-hipotese").value,
+    vitimas: $("#ia-vitimas").value,
+    investigados: $("#ia-investigados").value,
+    janela_vitima_dias: +$("#ia-janela").value || 7,
+  };
+}
+function pintarChat(msgs) {
+  const el = $("#ia-chat");
+  if (!msgs || !msgs.length) { el.innerHTML = '<div class="msg sistema">Nenhuma mensagem nesta conversa. Gere a análise ou pergunte — funciona sem Ollama.</div>'; return; }
+  el.innerHTML = msgs.map((m) => `<div class="msg ${esc(m.papel)}">${esc(m.texto)}</div>`).join("");
+  el.scrollTop = el.scrollHeight;
+}
+function pintarAnalise(a) {
+  const alvo = $("#ia-analise");
+  if (!a) { alvo.innerHTML = '<p class="nota">Ainda não há análise salva neste caso.</p>'; return; }
+  const ach = (a.achados || []).filter((x) => x.tipo !== "alcance");
+  alvo.innerHTML = `<div class="aviso">${esc(a.aviso || "")}</div>
+    <p class="nota">Hipótese: <b>${esc(a.hipotese_crime)}</b>${(a.hipoteses_detectadas || []).length ? " (detectada: " + esc(a.hipoteses_detectadas.join(", ")) + ")" : ""} · ${esc((a.gerado_em || "") + " " + (a.gerado_por || ""))}</p>
+    <pre>${esc(a.narrativa || "")}</pre>
+    ${ach.map((x) => `<details class="achado ${esc(x.qualificacao)}"><summary>[${esc(x.id)}] ${esc(x.titulo)}</summary><p>${esc(x.texto)}</p>
+      ${(x.evidencias || []).slice(0, 12).map((e) => {
+        if (e && e.lancamento_id) return `<div class="mini">lanç. ${e.lancamento_id} ${esc(e.data || "")} ${esc(e.natureza || "")} ${esc(e.valor_fmt || "")} ${esc(e.contraparte || e.descricao || "")} · ${esc(e.fonte || "")} linha ${e.linha || ""}</div>`;
+        if (e && e.saida) return `<div class="mini">${esc(e.categoria || "")} ${esc(e.valor_atribuido_fmt || "")} após crédito ${e.entrada && e.entrada.lancamento_id} → lanç. ${e.saida.lancamento_id} ${esc(e.saida.valor_fmt || "")} ${esc(e.saida.contraparte || e.saida.descricao || "")} (${e.horas_depois} h)</div>`;
+        return e && e.fonte ? `<div class="mini">${esc(e.fonte)} ${esc(e.numero || "")}</div>` : "";
+      }).join("")}</details>`).join("")}`;
+}
+async function carregarIA() {
+  if (!estado.caso) return;
   const fs = await api("GET", `/api/casos/${exigirCaso()}/fontes`);
   $("#ia-doc").innerHTML = fs.filter((f) => f.tipo === "pdf").map((f) => `<option value="${f.id}">${esc(f.nome_original)}</option>`).join("");
+  const papeis = { boletim: "BO", relatorio_investigacao: "relatório", rif: "RIF", documento: "PDF", extrato: "extrato" };
+  $("#ia-docs").innerHTML = fs.length ? "Fontes: " + fs.map((f) => {
+    const sel = `<select data-papel="${f.id}">${["", "boletim", "relatorio_investigacao", "rif", "documento", "extrato"].map((p) => `<option value="${p}" ${(f.papel || "") === p ? "selected" : ""}>${papeis[p] || "(papel)"}</option>`).join("")}</select>`;
+    return `${esc(f.nome_original)} ${sel}`;
+  }).join(" · ") : "Nenhuma fonte neste caso. Importe extratos e o BO na aba Importar.";
+  $$("select[data-papel]").forEach((s) => (s.onchange = async () => {
+    try { await api("POST", `/api/fontes/${s.dataset.papel}/papel`, { papel: s.value || null }); }
+    catch (e) { alert(e.message); }
+  }));
+  try {
+    const ctx = await api("GET", `/api/casos/${estado.caso}/contexto`);
+    if (ctx.hipotese_crime) $("#ia-hipotese").value = ctx.hipotese_crime;
+    if (ctx.vitimas && ctx.vitimas.length) $("#ia-vitimas").value = ctx.vitimas.map((v) => [v.nome, v.doc].filter(Boolean).join(" ")).join("\n");
+    if (ctx.investigados && ctx.investigados.length) $("#ia-investigados").value = ctx.investigados.map((v) => [v.nome, v.doc].filter(Boolean).join(" ")).join("\n");
+    pintarAnalise(ctx.analise);
+  } catch (e) { $("#ia-analise").innerHTML = `<div class="nota">${esc(e.message)}</div>`; }
+  await verificarModelos();
 }
-$("#btn-modelos").onclick = async () => {
+async function verificarModelos() {
   try {
     const r = await api("GET", "/api/ia/modelos");
-    $("#ia-modelo").innerHTML = r.modelos.map((m) => `<option>${esc(m)}</option>`).join("");
-    $("#ia-info").textContent = `Ollama ${r.versao || "?"} em ${r.endereco}. ${r.modelos.length} modelo(s) local(is).${r.bloqueados_nuvem.length ? " Bloqueados (nuvem): " + r.bloqueados_nuvem.join(", ") : ""} ${r.lembrete}`;
-  } catch (e) { $("#ia-info").textContent = e.message; }
-};
-$("#btn-ia").onclick = async () => {
-  const el = $("#ia-resposta");
+    const atual = $("#ia-modelo").value;
+    $("#ia-modelo").innerHTML = '<option value="">(sem Ollama — análise local)</option>' + r.modelos.map((m) => `<option>${esc(m)}</option>`).join("");
+    if (atual && r.modelos.includes(atual)) $("#ia-modelo").value = atual;
+    else if (r.modelos.length) $("#ia-modelo").value = r.modelos[0];
+    if (r.disponivel === false) {
+      $("#ia-info").textContent = (r.erro || "Ollama indisponível") + " — análise preliminar e chat local funcionam sem Ollama. " + (r.lembrete || "");
+    } else {
+      $("#ia-info").textContent = r.modelos.length
+        ? `Ollama ${r.versao || "?"} em ${r.endereco}. ${r.modelos.length} modelo(s).${r.bloqueados_nuvem.length ? " Bloqueados (nuvem): " + r.bloqueados_nuvem.join(", ") : ""}`
+        : `Ollama em ${r.endereco}, nenhum modelo local. A análise preliminar e o chat determinístico funcionam assim mesmo. Baixe um modelo (ex.: ollama pull qwen3:4b-instruct) para texto mais livre.`;
+    }
+  } catch (e) {
+    $("#ia-modelo").innerHTML = '<option value="">(sem Ollama — análise local)</option>';
+    $("#ia-info").textContent = e.message + " — você ainda pode gerar a análise preliminar e perguntar; as respostas virão dos cálculos do programa.";
+  }
+}
+$("#btn-modelos").onclick = () => verificarModelos();
+$("#btn-contexto").onclick = async () => {
   try {
-    const alvoDoc = $$("input[name=ia-alvo]").find((i) => i.checked).value === "doc";
-    const r = await api("POST", `/api/casos/${exigirCaso()}/ia`, { modelo: $("#ia-modelo").value, pergunta: $("#ia-pergunta").value, filtros: lerFiltrosSimples(), fonte_id: alvoDoc ? +$("#ia-doc").value : null, usar_conhecimento: $("#ia-conh").checked });
-    const res = await esperarTarefa(r.tarefa, el);
-    el.innerHTML = `<div class="aviso">${esc(res.aviso)}</div><p class="nota">Alcance enviado: ${esc(JSON.stringify(res.alcance))}${res.referencias.length ? " | Base de conhecimento: " + esc(res.referencias.map((x) => x.titulo).join("; ")) : ""}</p><pre>${esc(res.resposta)}</pre>
-      <details><summary>Corrigir esta resposta (a correção vira exemplo para as próximas perguntas)</summary><textarea id="ia-corr" rows="6">${esc(res.resposta)}</textarea><button id="btn-ia-corr">Salvar resposta revisada</button></details>`;
-    $("#btn-ia-corr").onclick = async () => { await api("POST", "/api/ia/correcoes", { caso_id: estado.caso, pergunta: $("#ia-pergunta").value, resposta_revisada: $("#ia-corr").value }); alert("Correção salva."); };
+    await api("POST", `/api/casos/${exigirCaso()}/contexto`, {
+      hipotese_crime: $("#ia-hipotese").value, vitimas: $("#ia-vitimas").value, investigados: $("#ia-investigados").value,
+    });
+    alert("Contexto salvo.");
+  } catch (e) { alert(e.message); }
+};
+$("#btn-analise").onclick = async () => {
+  const el = $("#ia-analise");
+  try {
+    const r = await api("POST", `/api/casos/${exigirCaso()}/analise`, {
+      filtros: lerFiltrosSimples(), hipotese_crime: $("#ia-hipotese").value, vitimas: $("#ia-vitimas").value,
+      investigados: $("#ia-investigados").value, janela_vitima_dias: +$("#ia-janela").value || 7,
+    });
+    const a = await esperarTarefa(r.tarefa, el);
+    pintarAnalise(a);
   } catch (e) { msg(el, e.message); }
 };
+$("#btn-ia-nova").onclick = () => { estado.conversaId = null; pintarChat([]); $("#ia-resposta").innerHTML = ""; };
+$("#btn-ia").onclick = async () => {
+  const el = $("#ia-resposta");
+  const pergunta = $("#ia-pergunta").value.trim();
+  if (!pergunta) return alert("Escreva a pergunta (ou clique em Gerar análise preliminar).");
+  try {
+    const r = await api("POST", `/api/casos/${exigirCaso()}/ia`, corpoIA());
+    const res = await esperarTarefa(r.tarefa, el);
+    estado.conversaId = res.conversa_id;
+    pintarChat(res.historico);
+    $("#ia-pergunta").value = "";
+    el.innerHTML = `<div class="aviso">${esc(res.aviso)}</div><p class="nota">Modo: ${esc(res.modo)}${res.modelo ? " · modelo " + esc(res.modelo) : ""}${res.referencias && res.referencias.length ? " · base: " + esc(res.referencias.map((x) => x.titulo).join("; ")) : ""}</p>
+      <details><summary>Corrigir esta resposta (vira exemplo para as próximas)</summary><textarea id="ia-corr" rows="6">${esc(res.resposta)}</textarea><button id="btn-ia-corr">Salvar resposta revisada</button></details>`;
+    $("#btn-ia-corr").onclick = async () => { await api("POST", "/api/ia/correcoes", { caso_id: estado.caso, pergunta, resposta_revisada: $("#ia-corr").value }); alert("Correção salva."); };
+    if ($("#ia-gerar").checked) {
+      const ctx = await api("GET", `/api/casos/${estado.caso}/analise`);
+      if (ctx.analise) pintarAnalise(ctx.analise);
+    }
+  } catch (e) { msg(el, e.message); }
+};
+$("#ia-pergunta").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#btn-ia").click(); }
+});
 
 // ------------------------------------------------------------------ base de conhecimento
 async function carregarConhecimento() {

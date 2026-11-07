@@ -22,7 +22,7 @@ RESSALVAS = [
 ]
 
 
-def dados(b, caso_id, filtros, observacoes, evidencias_ids, usuario, pasta_dados):
+def dados(b, caso_id, filtros, observacoes, evidencias_ids, usuario, pasta_dados, incluir_analise=False):
     caso = b.q1("SELECT * FROM casos WHERE id=?", (caso_id,))
     t = pesquisa.totais(b, caso_id, filtros)
     w, par = pesquisa._where(caso_id, filtros)
@@ -47,9 +47,16 @@ def dados(b, caso_id, filtros, observacoes, evidencias_ids, usuario, pasta_dados
                 with open(os.path.join(pasta_dados, e["arquivo_jpg"]), "rb") as fh:
                     e["jpg"] = fh.read()
             evid.append(e)
+    analise_txt = ""
+    if incluir_analise:
+        from . import analise as mod_analise
+        ctxa = mod_analise.contexto(b, caso_id)
+        if ctxa.get("analise"):
+            analise_txt = ctxa["analise"].get("narrativa") or ""
     return {"caso": caso, "totais": t, "filtros": pesquisa.descrever_filtros(b, filtros), "memoria": memoria,
             "memoria_truncada": truncada, "soma_memoria": soma, "fontes": fontes, "observacoes": observacoes or "",
-            "evidencias": evid, "usuario": usuario, "gerado_em": util.agora_iso(), "versao": VERSAO}
+            "evidencias": evid, "usuario": usuario, "gerado_em": util.agora_iso(), "versao": VERSAO,
+            "analise_preliminar": analise_txt}
 
 
 def _linhas_memoria(d):
@@ -102,6 +109,10 @@ def html_relatorio(d):
     for c in t["por_conta"]:
         p.append("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%d</td></tr>" % (e(c["conta"]), e(c["titular"] or ""), c["c_fmt"], c["d_fmt"], c["n"]))
     p.append("</table>")
+    if d.get("analise_preliminar"):
+        p.append("<h2>Análise preliminar automática</h2><div class='aviso'>%s</div><pre style='white-space:pre-wrap;font-family:Arial,sans-serif'>%s</pre>" % (
+            e("Rascunho gerado pelo programa. Confira fonte, linha e cálculos. Não é laudo."),
+            e(d["analise_preliminar"])))
     if d["observacoes"].strip():
         p.append("<h2>Observações do analista</h2><p>%s</p>" % e(d["observacoes"]).replace("\n", "<br>"))
     for ev in d["evidencias"]:
@@ -146,6 +157,10 @@ def _estrutura(doc, d):
     doc.titulo("Por conta", 12)
     doc.tabela(["Conta", "Titular", "Créditos", "Débitos", "Registros"],
                [[c["conta"], c["titular"] or "", c["c_fmt"], c["d_fmt"], c["n"]] for c in t["por_conta"]])
+    if d.get("analise_preliminar"):
+        doc.titulo("Análise preliminar automática")
+        doc.paragrafo("Rascunho gerado pelo programa. Confira fonte, linha e cálculos. Não é laudo.")
+        doc.paragrafo(d["analise_preliminar"])
     if d["observacoes"].strip():
         doc.titulo("Observações do analista")
         doc.paragrafo(d["observacoes"])
@@ -203,8 +218,8 @@ def pdf_relatorio(d):
     return doc.gerar()
 
 
-def gerar(b, caso_id, formato, filtros, observacoes, evidencias_ids, usuario, pasta_dados):
-    d = dados(b, caso_id, filtros, observacoes, evidencias_ids, usuario, pasta_dados)
+def gerar(b, caso_id, formato, filtros, observacoes, evidencias_ids, usuario, pasta_dados, incluir_analise=False):
+    d = dados(b, caso_id, filtros, observacoes, evidencias_ids, usuario, pasta_dados, incluir_analise)
     if formato == "docx":
         return docx_relatorio(d), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "relatorio.docx"
     if formato == "pdf":

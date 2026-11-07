@@ -32,7 +32,7 @@
   <button data-aba="documentos">PDF / OCR</button>
   <button data-aba="evidencias">Marcar evidências</button>
   <button data-aba="relatorio">Relatório</button>
-  <button data-aba="ia">Perguntar à IA</button>
+  <button data-aba="ia">IA e análise</button>
   <button data-aba="conhecimento">Aprimorar a IA</button>
   <button data-aba="auditoria">Auditoria</button>
 </nav>
@@ -120,8 +120,26 @@
 
 <section id="aba-grafo" class="aba">
   <h2>Grafo de relações</h2>
-  <p class="aviso">As setas mostram a direção dos registros. Não comprovam que um crédito específico financiou um débito específico.</p>
-  <button id="btn-grafo" class="primario">Gerar grafo com os filtros da Pesquisa</button> <button id="btn-grafo-png">Baixar PNG</button>
+  <p class="aviso">As setas mostram a direção dos registros. Não comprovam que um crédito específico financiou um débito específico. Arraste para mover, role o mouse para aproximar/afastar.</p>
+  <div class="cartao">
+    <p class="nota">Filtros desta tela (independentes da aba Pesquisar, a menos que você marque a opção). Clique em cada lista e marque as opções.</p>
+    <label><input type="checkbox" id="g-usar-pesquisa"> usar os filtros atuais da aba Pesquisar</label>
+    <div id="grafo-facetas" class="facetas"></div>
+    <div class="linha-filtros">
+      <label>De <input type="date" id="gf-data-ini"></label>
+      <label>Até <input type="date" id="gf-data-fim"></label>
+      <label>Valor mín. <input id="gf-vmin" size="9" placeholder="0,00"></label>
+      <label>Valor máx. <input id="gf-vmax" size="9"></label>
+      <label>Texto <input id="gf-texto" size="16" placeholder="nome, CPF"></label>
+      <label>Nós máx. <input id="gf-maxnos" type="number" min="10" max="300" value="80" size="4"></label>
+      <label>Volume mín. da seta <input id="gf-minvol" size="9" placeholder="0,00"></label>
+      <label>Destacar <input id="gf-busca" size="18" placeholder="nome ou CPF no grafo"></label>
+    </div>
+    <button id="btn-grafo" class="primario">Gerar grafo</button>
+    <button id="btn-grafo-limpar">Limpar filtros do grafo</button>
+    <button id="btn-grafo-png">Baixar PNG</button>
+    <span id="grafo-filtros-ativos" class="chips"></span>
+  </div>
   <div id="grafo-area"></div>
   <h2>Sequências de repasses (possibilidades)</h2>
   <div class="cartao">
@@ -179,20 +197,54 @@
   <h2>Relatório (rascunho com fontes e memória de cálculo)</h2>
   <p class="nota">Usa os filtros atuais da aba Pesquisar. Contém totais, rankings, fontes com SHA-256, memória de cálculo com arquivo/linha de cada lançamento e ressalvas.</p>
   <textarea id="rel-obs" rows="6" placeholder="Observações do analista"></textarea>
+  <label><input type="checkbox" id="rel-analise"> incluir a análise preliminar automática (se já tiver sido gerada na aba IA)</label>
   <div id="rel-imagens"></div>
   <button class="primario" data-formato="docx">Gerar DOCX</button> <button data-formato="pdf">Gerar PDF</button> <button data-formato="html">Gerar HTML</button>
 </section>
 
 <section id="aba-ia" class="aba">
-  <h2>Perguntar à IA local (Ollama em 127.0.0.1)</h2>
-  <p class="aviso">A IA recebe os números calculados pelo programa, os filtros e uma amostra limitada. Pode errar: confira fonte, página, linha e cálculos. Inicie o Ollama com a nuvem desativada.</p>
-  <button id="btn-modelos">Verificar modelos locais</button> <select id="ia-modelo"></select> <span id="ia-info" class="nota"></span>
-  <div><label><input type="radio" name="ia-alvo" value="mov" checked> Movimentações (filtros da Pesquisa)</label>
-       <label><input type="radio" name="ia-alvo" value="doc"> Documento PDF <select id="ia-doc"></select></label>
-       <label><input type="checkbox" id="ia-conh" checked> usar base de conhecimento local</label></div>
-  <textarea id="ia-pergunta" rows="4" placeholder="Pergunta"></textarea>
-  <button id="btn-ia" class="primario">Perguntar</button>
-  <div id="ia-resposta"></div>
+  <h2>IA local e análise preliminar automática</h2>
+  <p class="aviso">A análise preliminar é calculada pelo próprio programa (sem internet e sem Ollama): valores semelhantes, destino do dinheiro da vítima, saques/cartão, débito imediato. O chat generativo (estilo ChatGPT/Claude) usa o Ollama só em 127.0.0.1. Tudo é rascunho: confira fonte, página, linha e cálculos.</p>
+
+  <div class="cartao">
+    <h3>Contexto do caso (BO, relatório, hipótese)</h3>
+    <p class="nota">Importe o boletim de ocorrência e o relatório de investigação como PDF na aba Importar (tipo «extrair texto») e marque o papel abaixo. Informe vítima e investigado para o rastreio no estelionato.</p>
+    <label>Hipótese <select id="ia-hipotese">
+      <option value="auto">detectar no BO/RIF (tráfico, estelionato, lavagem)</option>
+      <option value="trafico">tráfico de drogas</option>
+      <option value="estelionato">estelionato / golpe</option>
+      <option value="lavagem">lavagem de capitais</option>
+      <option value="outro">outro / sem hipótese</option>
+    </select></label>
+    <label>Janela após a vítima (dias) <input id="ia-janela" type="number" min="1" max="60" value="7" size="3"></label>
+    <div class="duas">
+      <div><label>Vítimas (um por linha: nome e/ou CPF)</label><textarea id="ia-vitimas" rows="3" placeholder="MARIA FICTICIA&#10;000.000.002-72"></textarea></div>
+      <div><label>Investigados (um por linha)</label><textarea id="ia-investigados" rows="3" placeholder="JOAO FICTICIO&#10;000.000.001-91"></textarea></div>
+    </div>
+    <div id="ia-docs" class="nota"></div>
+    <button id="btn-analise" class="primario">Gerar análise preliminar</button>
+    <button id="btn-contexto">Salvar contexto sem gerar</button>
+  </div>
+  <div id="ia-analise"></div>
+
+  <div class="cartao">
+    <h3>Chat</h3>
+    <p class="nota">Funciona mesmo sem Ollama (responde com a análise calculada). Com Ollama local, o modelo redige em cima desses números. Exemplos: «para onde foi o dinheiro da vítima?», «há valores semelhantes de tráfico?», «essa conta tem uso de cartão e saque ou só passa PIX?»</p>
+    <button id="btn-modelos">Verificar modelos locais</button>
+    <select id="ia-modelo"><option value="">(sem Ollama — análise local)</option></select>
+    <span id="ia-info" class="nota"></span>
+    <div><label><input type="radio" name="ia-alvo" value="mov" checked> Movimentações (filtros da Pesquisa)</label>
+         <label><input type="radio" name="ia-alvo" value="doc"> Documento PDF <select id="ia-doc"></select></label>
+         <label><input type="checkbox" id="ia-conh" checked> usar base de conhecimento local</label>
+         <label><input type="checkbox" id="ia-gerar" checked> atualizar a análise automática a cada pergunta</label></div>
+    <div id="ia-chat" class="chat"></div>
+    <div class="chat-composer">
+      <textarea id="ia-pergunta" rows="3" placeholder="Pergunte sobre o caso. Enter envia; Shift+Enter quebra a linha."></textarea>
+      <button id="btn-ia" class="primario">Perguntar</button>
+      <button id="btn-ia-nova">Nova conversa</button>
+    </div>
+    <div id="ia-resposta"></div>
+  </div>
 </section>
 
 <section id="aba-conhecimento" class="aba">

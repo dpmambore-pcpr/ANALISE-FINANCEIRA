@@ -41,13 +41,13 @@ O atualizador é o único componente que acessa a internet, e só quando você o
 | Pesquisar | **Filtros com lista de todas as opções para marcar**: CPF/CNPJ, nomes (titular e contraparte), contas, bancos, chaves PIX, tipo de operação, descrição, mês, data, IP, cidade, status, arquivo e remessa. Totais, principais origens/destinos, totais por conta, exportação CSV. |
 | Pesquisa geral | Lista **tudo** o que foi encontrado em todos os documentos (extratos, cadastros, acessos, RIF, texto de PDF): CPF, CNPJ, nomes, bancos, contas, PIX, ID PIX, e-mails, telefones, IPs, coordenadas, cidades, dispositivos e datas. Marque valores e veja onde cada um aparece (arquivo, página/linha). |
 | IP / Geolocalização | Registros de acesso de qualquer banco: IP, porta, data/hora com fuso original, latitude/longitude, cidade, dispositivo; gráfico de dispersão das coordenadas sem mapa da internet. |
-| Grafo e repasses | Grafo de relações e sequências de repasses por coincidência de identificador, data e valor, sempre rotuladas como **possibilidade**. |
+| Grafo e repasses | Grafo de relações com **filtros na própria tela**, pan e zoom; sequências de repasses por coincidência de identificador, data e valor, sempre rotuladas como **possibilidade**. |
 | Duplicatas | Revisão humana de registros repetidos entre abas/arquivos e dos dois lados de transferências. |
 | RIF | Comunicações, envolvidos e ocorrências, **separados** dos extratos e fora dos totais. |
 | PDF / OCR | Texto por página, OCR local opcional (Tesseract/Poppler) e revisão por caixa delimitadora. |
 | Marcar evidências | Retângulo, círculo e seta sobre página/imagem/captura colada (Ctrl+V); a imagem marcada vai para o relatório. |
 | Relatório | DOCX, PDF ou HTML com filtros, alcance, totais, fontes com SHA-256, memória de cálculo com arquivo/linha e ressalvas. |
-| Perguntar à IA / Aprimorar a IA | Ollama somente em `127.0.0.1`; base de conhecimento local alimentada com novos documentos e respostas revisadas. Veja [docs/IA_LOCAL.md](docs/IA_LOCAL.md). |
+| IA e análise | Análise preliminar automática (tráfico, estelionato, lavagem) a partir de extratos, RIF, BO e relatório; chat local que funciona sem Ollama e, se o Ollama estiver em `127.0.0.1`, redige como um modelo generativo. Veja [docs/IA_LOCAL.md](docs/IA_LOCAL.md). |
 
 Regras de cálculo, leiautes e limitações: [docs/MANUAL.md](docs/MANUAL.md) e [docs/LEIAUTES.md](docs/LEIAUTES.md). Segurança: [docs/SEGURANCA.md](docs/SEGURANCA.md).
 

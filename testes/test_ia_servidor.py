@@ -155,6 +155,17 @@ class TestServidor(CasoTeste):
         self.assertTrue(corpo.startswith(b"PK"))
         st, _, _ = self.req("/api/casos/%d/fontes" % self.caso, cab={"X-Usuario": "intruso"})
         self.assertEqual(st, 403)
+        st, corpo, _ = self.req("/api/casos/%d/ia" % self.caso, {"pergunta": "resumo preliminar", "gerar_analise": True})
+        self.assertEqual(st, 200, corpo)
+        tid = json.loads(corpo)["tarefa"]
+        for _ in range(100):
+            t = json.loads(self.req("/api/tarefas/" + tid)[1])
+            if t["estado"] != "executando":
+                break
+            threading.Event().wait(0.1)
+        self.assertEqual(t["estado"], "concluida", t)
+        self.assertEqual(t["resultado"]["modo"], "local")
+        self.assertIn("preliminar", t["resultado"]["resposta"].lower())
 
     def test_aviso_de_atualizacao(self):
         class Falso:

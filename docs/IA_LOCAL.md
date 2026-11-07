@@ -2,9 +2,19 @@
 
 ## Princípios
 
-- O programa só conversa com o Ollama em `http://127.0.0.1` (porta 11434, ou `ANALISE_OLLAMA_PORTA`). Proxies do sistema são ignorados. Modelos marcados como nuvem (`:cloud`, `-cloud`, `remote_host`) são recusados.
-- A IA recebe os **números já calculados** pelo programa, os filtros, as fontes com SHA-256 e uma amostra limitada de registros. O alcance enviado aparece na tela e na auditoria.
+- A **análise preliminar** é feita pelo próprio programa (sem modelo e sem internet): cruza extratos, RIF, boletim de ocorrência e relatório de investigação. Marque o papel do PDF na importação (BO / relatório / RIF). Informe vítima e investigado para o estelionato.
+- O **chat** funciona mesmo sem Ollama: responde com os achados já calculados (valores semelhantes, destino do dinheiro da vítima, saques/cartão, débito imediato).
+- Com Ollama em `http://127.0.0.1` (porta 11434, ou `ANALISE_OLLAMA_PORTA`), o modelo generativo redige em cima desses números, no estilo de um ChatGPT/Claude local. Proxies do sistema são ignorados. Modelos marcados como nuvem (`:cloud`, `-cloud`, `remote_host`) são recusados.
+- A IA recebe os **números já calculados** pelo programa, a análise preliminar, os filtros, as fontes com SHA-256 e uma amostra limitada de registros. O alcance enviado aparece na tela e na auditoria.
 - A resposta é rascunho: confira fonte, página, linha e cálculo.
+
+## O que a análise automática procura
+
+- **Tráfico:** muitos créditos de valores iguais ou próximos (ex.: R$ 50, 100, 150, 200) vindos de várias pessoas; saque ou PIX de saída em seguida.
+- **Estelionato:** créditos em que a contraparte é a vítima (informada ou extraída do BO) e, nos dias seguintes na mesma conta, se o valor foi sacado, transferido a terceiro ou gasto no cartão/compras — e se a conta tem uso efetivo (saque, cartão, contas) ou só passa dinheiro.
+- **Lavagem / passagem:** crédito com débito imediato (até 24 h, mesmo valor ou próximo); proporção alta de PIX/TED e baixa de gasto pessoal.
+
+Tudo isso é **hipótese de trabalho**, com fonte e linha, não conclusão.
 
 ## Preparar o Ollama sem nuvem
 
