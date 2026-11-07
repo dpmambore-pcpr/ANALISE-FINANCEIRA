@@ -2,7 +2,7 @@
 
 ## Princípios
 
-- A **análise preliminar** é feita pelo próprio programa (sem modelo e sem internet): cruza extratos, RIF, boletim de ocorrência e relatório de investigação. Marque o papel do PDF na importação (BO / relatório / RIF). Informe vítima e investigado para o estelionato.
+- A **análise preliminar** é feita pelo próprio programa (sem modelo e sem internet): cruza extratos, RIF, boletim de ocorrência e relatório de investigação. Na aba **4. Análise** há um campo para anexar BO, relatório, ofício ou outro PDF/TXT e dizer o tipo. Informe vítima e investigado para o estelionato.
 - O **chat** funciona mesmo sem Ollama: responde com os achados já calculados (valores semelhantes, destino do dinheiro da vítima, saques/cartão, débito imediato).
 - Com Ollama em `http://127.0.0.1` (porta 11434, ou `ANALISE_OLLAMA_PORTA`), o modelo generativo redige em cima desses números, no estilo de um ChatGPT/Claude local. Proxies do sistema são ignorados. Modelos marcados como nuvem (`:cloud`, `-cloud`, `remote_host`) são recusados.
 - **Gemini (parceria institucional da Polícia Civil)** é opcional e desligado por padrão. Na aba **4. Análise** há um passo a passo: peça a chave à TI ou, se a TI pedir, gere em [aistudio.google.com/apikey](https://aistudio.google.com/apikey) com a conta institucional; cole, marque a autorização e clique em **Salvar e testar**. Depois escolha um modelo «Gemini · …» no chat. Aí sim trechos do caso (totais, amostra de lançamentos, texto de BO/relatório) saem deste computador para `generativelanguage.googleapis.com` (ou o endpoint Vertex da unidade). A chave fica em `dados/gemini.json` (fora do Git) ou em `ANALISE_GEMINI_CHAVE`. Sem chave, sem autorização ou sem escolher Gemini, nada é enviado ao Google. Falha do Gemini **não** cai em silêncio na análise local: o erro aparece na tela.
@@ -21,8 +21,9 @@ Tudo isso é **hipótese de trabalho**, com fonte e linha, não conclusão.
 
 1. Peça a chave à TI da unidade (parceria Gemini da Polícia Civil). Se a TI pediu para gerar no Google AI Studio: abra [aistudio.google.com/apikey](https://aistudio.google.com/apikey), entre com a **conta institucional**, clique em **Create API key** e copie (em geral começa com `AIza`).
 2. Na aba **4. Análise**, cole a chave, marque **Autorizo o envio** e clique em **Salvar e testar**. O teste manda só a palavra «ok», sem dados do caso. Endpoint Vertex fica em *Opções avançadas*, só se a TI pedir.
-3. No seletor do chat, deixe `Gemini · gemini-2.5-flash` (ou outro). A pergunta então vai à nuvem; o aviso na resposta deixa isso explícito.
-4. **Remover chave** apaga `dados/gemini.json` deste computador.
+3. Anexe o boletim, o relatório e outros documentos no campo da própria aba (antes de perguntar). Sem eles, o Gemini trabalha só com o extrato e a análise local.
+4. No seletor do chat, deixe `Gemini · gemini-2.5-flash` (ou outro). A pergunta então vai à nuvem; o aviso na resposta deixa isso explícito.
+5. **Remover chave** apaga `dados/gemini.json` deste computador.
 
 Variáveis (para instalação da unidade, se preferir não colar na tela): `ANALISE_GEMINI_CHAVE`, `ANALISE_GEMINI_ENDPOINT`, `ANALISE_GEMINI_MODELO`. Com a variável da chave definida, o envio já conta como autorizado pelo administrador.
 

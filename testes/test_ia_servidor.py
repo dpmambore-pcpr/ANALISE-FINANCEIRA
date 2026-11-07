@@ -182,6 +182,29 @@ class TestServidor(CasoTeste):
         self.assertEqual(t["resultado"]["modo"], "local")
         self.assertIn("preliminar", t["resultado"]["resposta"].lower())
 
+    def _esperar_tarefa(self, tid):
+        t = None
+        for _ in range(100):
+            t = json.loads(self.req("/api/tarefas/" + tid)[1])
+            if t["estado"] != "executando":
+                break
+            threading.Event().wait(0.1)
+        return t
+
+    def test_anexar_documento_analise_http(self):
+        texto = "BOLETIM FICTICIO\nVítima: ANA TESTE\n".encode("utf-8")
+        st, corpo, _ = self.req("/api/casos/%d/docs-analise" % self.caso, bruto=texto,
+                                cab={"X-Nome-Arquivo": "bo.txt", "X-Papel": "boletim"})
+        self.assertEqual(st, 200, corpo)
+        t = self._esperar_tarefa(json.loads(corpo)["tarefa"])
+        self.assertEqual(t["estado"], "concluida", t)
+        self.assertEqual(t["resultado"]["fonte"]["papel"], "boletim")
+        self.assertEqual(t["resultado"]["relatorio"]["paginas"], 1)
+        st, corpo, _ = self.req("/api/casos/%d/docs-analise" % self.caso, bruto=b"x",
+                                cab={"X-Nome-Arquivo": "planilha.xlsx", "X-Papel": "boletim"})
+        self.assertEqual(st, 400, corpo)
+        self.assertIn(b"PDF", corpo)
+
     def test_aviso_de_atualizacao(self):
         class Falso:
             def verificar_atualizacao(self):

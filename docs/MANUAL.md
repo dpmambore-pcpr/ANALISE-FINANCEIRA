@@ -43,9 +43,9 @@ Reúne identificadores de todas as fontes: extratos (lançamento e origem/destin
 
 ## Análise preliminar e chat (aba 4. Análise)
 
-1. Importe extratos normalmente. Importe o **boletim de ocorrência** e o **relatório de investigação** como PDF → Extrair texto, marcando o papel (BO / relatório).
+1. Importe extratos normalmente. Na aba **4. Análise**, anexe o **boletim de ocorrência**, o **relatório de investigação** ou outro documento (PDF com texto, TXT ou MD) e diga o que é o arquivo. O texto entra na análise preliminar e no rascunho de relatório. (Ainda dá para importar o PDF na etapa 1 e marcar o papel.)
 2. Abra **4. Análise**: a análise preliminar **monta sozinha** neste computador (valores semelhantes, destino do dinheiro da vítima, saques/cartão vs conta de passagem, débito imediato). Informe vítima e investigado se for golpe, para melhorar o rastreio.
-3. **Perguntar** abre um chat. Sem modelo, a resposta vem dessa análise. Com Ollama local, o modelo redige neste computador. Com Gemini da parceria (chave + autorização + modelo Gemini no seletor), a pergunta vai à nuvem Google; o programa avisa isso na resposta. Enter envia; Shift+Enter quebra a linha.
+3. **Perguntar** abre um chat. Sem modelo, a resposta vem dessa análise. Com Ollama local, o modelo redige neste computador. Com Gemini da parceria (chave + autorização + modelo Gemini no seletor), a pergunta vai à nuvem Google — inclusive trechos do BO/relatório anexados; o programa avisa isso na resposta. Enter envia; Shift+Enter quebra a linha.
 4. Para o Gemini: peça a chave à TI da unidade ou, se a TI pedir, gere em [aistudio.google.com/apikey](https://aistudio.google.com/apikey) com a conta institucional; cole, marque a autorização e clique em **Salvar e testar**.
 
 ## Atualizar o programa

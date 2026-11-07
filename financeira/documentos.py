@@ -37,6 +37,17 @@ def ocr_disponivel():
     return {"tesseract": t, "pdftoppm": p, "idiomas": idiomas, "disponivel": bool(t and p)}
 
 
+def ler_texto_arquivo(caminho):
+    with open(caminho, "rb") as f:
+        bruto = f.read()
+    for enc in ("utf-8-sig", "utf-8", "cp1252"):
+        try:
+            return bruto.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return bruto.decode("latin-1", "replace")
+
+
 def extrair_texto(imp, caminho):
     paginas, avisos = leitores.texto_pdf(caminho)
     for a in avisos:
@@ -54,6 +65,18 @@ def extrair_texto(imp, caminho):
         imp.aviso("%d página(s) sem texto selecionável: provavelmente digitalizadas. Use o OCR local e revise." % vazias)
     imp.aviso("Texto extraído de PDF pode conter erros e não é convertido em lançamentos. Confira a página original.")
     return len(paginas)
+
+
+def extrair_texto_livre(imp, caminho):
+    texto = ler_texto_arquivo(caminho)
+    if not texto.strip():
+        imp.aviso("O arquivo de texto está vazio.")
+    pid = imp.b.con.execute("INSERT INTO paginas(caso_id, fonte_id, pagina, texto, metodo) VALUES (?,?,?,?, 'texto')",
+                            (imp.caso_id, imp.fonte["id"], 1, texto)).lastrowid
+    imp.ident_texto(texto, "paginas", pid, "arquivo", 1, "texto do documento")
+    imp.rel["paginas"] = 1
+    imp.aviso("Texto de arquivo (TXT/MD) extraído para a análise. Não vira lançamento bancário.")
+    return 1
 
 
 def renderizar_pagina(pasta_dados, fonte, caminho_pdf, pagina, dpi=150):

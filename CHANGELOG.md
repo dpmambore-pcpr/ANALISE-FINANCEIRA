@@ -1,5 +1,8 @@
 # Histórico de versões
 
+## 3.4.3
+- **Análise / Gemini:** na própria aba dá para anexar boletim de ocorrência, relatório de investigação, RIF ou outro documento (PDF, TXT ou MD). O texto entra na análise preliminar e no rascunho de relatório; só vai ao Google se a chave e a autorização do Gemini estiverem ativas.
+
 ## 3.4.2
 - Ao abrir, o programa consulta o GitHub **sempre**. Se estiver atrasado, aparece uma faixa vermelha **Este programa está desatualizado** com a versão nova e o botão **Atualizar agora** — para quem recebeu uma cópia antiga ver na hora.
 

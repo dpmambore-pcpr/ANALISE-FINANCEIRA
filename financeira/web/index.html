@@ -236,7 +236,7 @@
         </ol>
       </li>
       <li><b>Cole a chave</b> no campo abaixo. Ela fica só neste computador (pasta dados), não vai para o Git nem para outros casos automaticamente.</li>
-      <li>Marque <b>autorizo o envio</b>. Só então trechos do caso (totais, amostra de lançamentos, texto de BO) saem desta máquina para os servidores do Google.</li>
+      <li>Marque <b>autorizo o envio</b>. Só então trechos do caso (totais, amostra de lançamentos, <b>texto do boletim, relatório e outros documentos</b> anexados abaixo) saem desta máquina para os servidores do Google.</li>
       <li>Clique em <b>Salvar e testar</b>. O teste manda só a palavra «ok», sem dados do caso. Se der certo, no chat deixe selecionado <b>Gemini</b> e pergunte.</li>
     </ol>
     <div class="gemini-chave-linha">
@@ -257,9 +257,30 @@
     </details>
   </div>
 
+  <div class="cartao" id="ia-anexos">
+    <h3>Boletim, relatório e outros documentos</h3>
+    <p class="nota">Anexe aqui o BO, o relatório de investigação, ofício, mandado ou outro texto. O programa lê neste computador e usa na análise preliminar e no rascunho de relatório. Se o Gemini estiver autorizado, trechos desses documentos também vão na pergunta — senão, nada sai da máquina.</p>
+    <label>Este arquivo é
+      <select id="ia-doc-papel">
+        <option value="boletim">Boletim de ocorrência</option>
+        <option value="relatorio_investigacao">Relatório de investigação</option>
+        <option value="rif">RIF (PDF)</option>
+        <option value="documento">Outro documento (ofício, mandado, etc.)</option>
+      </select>
+    </label>
+    <label class="soltar" id="ia-doc-soltar">
+      <input type="file" id="ia-doc-arquivo" accept=".pdf,.txt,.md,application/pdf,text/plain" multiple>
+      <span class="soltar-ico">⬆</span>
+      <strong>Clique ou arraste o boletim, relatório ou outro documento</strong>
+      <span class="nota">PDF com texto, TXT ou MD · pode enviar vários</span>
+    </label>
+    <div id="ia-doc-status"></div>
+    <div id="ia-docs"></div>
+  </div>
+
   <div class="cartao">
     <h3>Quem é vítima e investigado (melhora a análise de golpe)</h3>
-    <p class="nota">Importe o boletim e o relatório como PDF na etapa Importar (tipo «extrair texto») e marque o papel abaixo. A análise preliminar já tenta montar sozinha ao abrir esta aba.</p>
+    <p class="nota">Se o BO ou o relatório já estiver anexado acima, a análise tenta achar vítima e investigado sozinha. Você pode completar ou corrigir os nomes aqui.</p>
     <label>Hipótese <select id="ia-hipotese">
       <option value="auto">detectar no BO/RIF (tráfico, estelionato, lavagem)</option>
       <option value="trafico">tráfico de drogas</option>
@@ -272,7 +293,6 @@
       <div><label>Vítimas (um por linha: nome e/ou CPF)</label><textarea id="ia-vitimas" rows="3" placeholder="MARIA FICTICIA&#10;000.000.002-72"></textarea></div>
       <div><label>Investigados (um por linha)</label><textarea id="ia-investigados" rows="3" placeholder="JOAO FICTICIO&#10;000.000.001-91"></textarea></div>
     </div>
-    <div id="ia-docs" class="nota"></div>
     <button id="btn-analise" class="primario">Gerar / atualizar análise</button>
     <button id="btn-contexto">Salvar nomes sem gerar</button>
   </div>

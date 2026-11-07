@@ -299,6 +299,39 @@ def r_upload(h, q, c):
     h.enviar(200, fonte)
 
 
+@rota("POST", r"/api/casos/(\d+)/docs-analise")
+def r_docs_analise(h, q, c):
+    caso = int(c)
+    auditoria.exigir(h.app.b, caso, h.usuario, "analista")
+    nome = urllib.parse.unquote(h.headers.get("X-Nome-Arquivo") or "documento.pdf")
+    papel = urllib.parse.unquote(h.headers.get("X-Papel") or "documento").strip()
+    if papel not in analise.PAPEIS_DOC:
+        raise ValueError("Informe se é boletim, relatório de investigação, RIF ou outro documento.")
+    ext = os.path.splitext(nome.lower())[1]
+    if ext not in servico.EXT_DOC_ANALISE:
+        raise ValueError("Envie PDF, TXT ou MD. Extrato em planilha/CSV vai na etapa Importar.")
+    n = int(h.headers.get("Content-Length") or 0)
+    if n <= 0:
+        raise ValueError("arquivo vazio")
+    if n > MAX_MB * 1024 * 1024:
+        raise ValueError("arquivo maior que %d MB (ajuste ANALISE_MAX_MB)" % MAX_MB)
+    tmp = os.path.join(h.app.pasta, "tmp", "upload_%s" % secrets.token_hex(8))
+    with open(tmp, "wb") as f:
+        restante = n
+        while restante:
+            bloco = h.rfile.read(min(restante, 1024 * 1024))
+            if not bloco:
+                break
+            f.write(bloco)
+            restante -= len(bloco)
+    if restante:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        raise IOError("envio interrompido")
+    tid = h.server.tarefas.iniciar(h.app.receber_documento_analise, caso, tmp, nome, papel, h.usuario)
+    h.enviar(200, {"tarefa": tid})
+
+
 @rota("GET", r"/api/fontes/(\d+)/zip")
 def r_zip(h, q, f):
     h.caso_da_fonte(f)

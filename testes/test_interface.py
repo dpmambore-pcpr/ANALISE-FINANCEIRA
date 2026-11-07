@@ -18,7 +18,7 @@ def _ler(nome):
 
 class TestInterfaceArquivos(unittest.TestCase):
     def test_versao(self):
-        self.assertEqual(VERSAO, "3.4.2")
+        self.assertEqual(VERSAO, "3.4.3")
 
     def test_html_fluxo_simples(self):
         html = _ler("index.html")
@@ -31,6 +31,9 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn("aistudio.google.com/apikey", html)
         self.assertIn("Salvar e testar", html)
         self.assertIn("Peça a chave à TI da unidade", html)
+        self.assertIn("Boletim, relatório e outros documentos", html)
+        self.assertIn('id="ia-doc-soltar"', html)
+        self.assertIn('id="ia-doc-papel"', html)
         self.assertIn("O mapa monta sozinho", html)
         self.assertNotIn("Gerar grafo", html)
 
@@ -48,6 +51,8 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn("agendarGrafo", js)
         self.assertIn("Este programa está desatualizado", js)
         self.assertIn("verificarAtualizacao(false)", js)
+        self.assertIn("enviarDocsAnalise", js)
+        self.assertIn("/api/casos/${exigirCaso()}/docs-analise", js)
         self.assertNotIn("atu-auto", js)
         self.assertNotIn('id="atu-auto"', _ler("index.html"))
 

@@ -47,7 +47,7 @@ Por padrão o programa **não envia dados de caso à internet**. O atualizador c
 | PDF / OCR | Texto por página, OCR local opcional (Tesseract/Poppler) e revisão por caixa delimitadora. |
 | Marcar evidências | Retângulo, círculo e seta sobre página/imagem/captura colada (Ctrl+V); a imagem marcada vai para o relatório. |
 | Relatório | DOCX, PDF ou HTML com filtros, alcance, totais, fontes com SHA-256, memória de cálculo com arquivo/linha e ressalvas. |
-| 4. Análise | Análise preliminar automática ao abrir a aba (tráfico, estelionato, lavagem); chat local, Ollama em `127.0.0.1`, ou Gemini da parceria (nuvem, opt-in, passo a passo da chave na tela). Veja [docs/IA_LOCAL.md](docs/IA_LOCAL.md). |
+| 4. Análise | Análise preliminar automática ao abrir a aba (tráfico, estelionato, lavagem); campo para anexar **boletim, relatório e outros documentos**; chat local, Ollama em `127.0.0.1`, ou Gemini da parceria (nuvem, opt-in, passo a passo da chave na tela). Veja [docs/IA_LOCAL.md](docs/IA_LOCAL.md). |
 
 Regras de cálculo, leiautes e limitações: [docs/MANUAL.md](docs/MANUAL.md) e [docs/LEIAUTES.md](docs/LEIAUTES.md). Segurança: [docs/SEGURANCA.md](docs/SEGURANCA.md).
 

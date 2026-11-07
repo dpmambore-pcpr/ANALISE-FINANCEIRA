@@ -255,6 +255,10 @@ canvas#ev-canvas { border: 1px solid var(--borda); background: #fff; max-width: 
 .soltar:hover, .soltar.sobre { border-color: var(--ouro); background: #fff8e8; }
 .soltar input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .soltar-ico { font-size: 28px; color: var(--navy3); line-height: 1; }
+#ia-doc-soltar { padding: 22px 14px; margin-top: 10px; }
+.ia-docs-tab { width: 100%; margin-top: 10px; }
+.ia-docs-tab th { text-align: left; }
+.ia-docs-tab select { max-width: 220px; }
 .proximos {
   display: flex;
   flex-wrap: wrap;

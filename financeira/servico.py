@@ -3,7 +3,9 @@
 import base64
 import os
 
-from . import (adaptadores, auditoria, banco, documentos, extrato_pdf, fontes, importacao, leitores, rif, simba, util)
+from . import (adaptadores, analise, auditoria, banco, documentos, extrato_pdf, fontes, importacao, leitores, rif, simba, util)
+
+EXT_DOC_ANALISE = (".pdf", ".txt", ".md")
 
 NOME_BANCO = "analise_v3.sqlite"
 
@@ -48,6 +50,38 @@ class App:
         auditoria.exigir(self.b, caso_id, usuario, "analista")
         return fontes.registrar(self.b, self.pasta, caso_id, caminho_tmp, nome, usuario, remessa_id=remessa_id)
 
+    def receber_documento_analise(self, caso_id, caminho_tmp, nome, papel, usuario, progresso=None):
+        """Guarda BO/relatório/outro documento, extrai o texto e marca o papel para a análise/Gemini."""
+        try:
+            auditoria.exigir(self.b, caso_id, usuario, "analista")
+            papel = (papel or "documento").strip()
+            if papel not in analise.PAPEIS_DOC:
+                raise ValueError("Informe se é boletim, relatório de investigação, RIF ou outro documento.")
+            ext = os.path.splitext((nome or "").lower())[1]
+            if ext not in EXT_DOC_ANALISE:
+                raise ValueError("Envie PDF, TXT ou MD. Extrato em planilha/CSV vai na etapa Importar.")
+            duplicada = False
+            try:
+                fonte = self.receber_arquivo(caso_id, caminho_tmp, nome, usuario)
+            except fontes.FonteDuplicada as e:
+                fonte = e.fonte
+                duplicada = True
+            n_pag = (self.b.q1("SELECT COUNT(*) AS n FROM paginas WHERE fonte_id=?", (fonte["id"],)) or {}).get("n") or 0
+            if n_pag:
+                analise.definir_papel_fonte(self.b, fonte["id"], papel, usuario)
+                rel = {"paginas": n_pag, "ja_existia": True}
+            else:
+                adaptador = "pdf_texto" if (fonte.get("tipo") == "pdf" or ext == ".pdf") else "texto_doc"
+                rel = self.importar(fonte["id"], adaptador, None, {"papel": papel}, usuario, progresso=progresso)
+            fonte = self.b.q1("SELECT id, nome_original, tipo, papel, sha256 FROM fontes WHERE id=?", (fonte["id"],))
+            return {"fonte": fonte, "papel": papel, "duplicada": duplicada, "relatorio": rel}
+        finally:
+            if caminho_tmp and os.path.exists(caminho_tmp):
+                try:
+                    os.remove(caminho_tmp)
+                except OSError:
+                    pass
+
     def fonte(self, fonte_id):
         f = self.b.q1("SELECT * FROM fontes WHERE id=?", (int(fonte_id),))
         if not f:
@@ -56,7 +90,10 @@ class App:
 
     def listar_fontes(self, caso_id):
         fs = self.b.q("SELECT f.*, r.rotulo AS remessa FROM fontes f LEFT JOIN remessas r ON r.id=f.remessa_id WHERE f.caso_id=? ORDER BY f.id", (caso_id,))
+        pags = {r["fonte_id"]: r["n"] for r in self.b.q(
+            "SELECT fonte_id, COUNT(*) AS n FROM paginas WHERE caso_id=? GROUP BY fonte_id", (caso_id,))}
         for f in fs:
+            f["n_paginas"] = pags.get(f["id"], 0)
             f["importacoes"] = self.b.q("SELECT id, adaptador, leiaute, local, criado_em, criado_por, aceitos, pendentes, rejeitados, "
                                         "duplicatas, estado FROM importacoes WHERE fonte_id=? ORDER BY id", (f["id"],))
         return fs
@@ -145,6 +182,10 @@ class App:
                     raise ValueError("Use um arquivo PDF.")
                 documentos.extrair_texto(imp, cam)
                 papel = opcoes.get("papel") or ("rif" if opcoes.get("rif") else "documento")
+                imp.b.con.execute("UPDATE fontes SET papel=? WHERE id=?", (papel, f["id"]))
+            elif adaptador == "texto_doc":
+                documentos.extrair_texto_livre(imp, cam)
+                papel = opcoes.get("papel") or "documento"
                 imp.b.con.execute("UPDATE fontes SET papel=? WHERE id=?", (papel, f["id"]))
             else:
                 raise ValueError("adaptador desconhecido: %s" % adaptador)

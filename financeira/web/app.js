@@ -155,19 +155,24 @@ async function enviarArquivo(arq, remessa) {
 $("#imp-arquivo").addEventListener("change", () => {
   if ($("#imp-arquivo").files[0]) $("#btn-enviar").click();
 });
-function ligarSoltar() {
-  const zona = $("#imp-soltar");
-  if (!zona) return;
+function ligarZonaArquivo(zonaSel, inputSel) {
+  const zona = $(zonaSel);
+  const input = $(inputSel);
+  if (!zona || !input) return;
   ["dragenter", "dragover"].forEach((ev) => zona.addEventListener(ev, (e) => { e.preventDefault(); zona.classList.add("sobre"); }));
   ["dragleave", "drop"].forEach((ev) => zona.addEventListener(ev, (e) => { e.preventDefault(); zona.classList.remove("sobre"); }));
   zona.addEventListener("drop", (e) => {
-    const f = e.dataTransfer.files[0];
-    if (!f) return;
+    const files = e.dataTransfer.files;
+    if (!files || !files.length) return;
     const dt = new DataTransfer();
-    dt.items.add(f);
-    $("#imp-arquivo").files = dt.files;
-    $("#imp-arquivo").dispatchEvent(new Event("change"));
+    Array.from(files).forEach((f) => dt.items.add(f));
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change"));
   });
+}
+function ligarSoltar() {
+  ligarZonaArquivo("#imp-soltar", "#imp-arquivo");
+  ligarZonaArquivo("#ia-doc-soltar", "#ia-doc-arquivo");
 }
 $("#btn-enviar").onclick = async () => {
   const arq = $("#imp-arquivo").files[0];
@@ -931,9 +936,59 @@ function pintarAnalise(a) {
         return e && e.fonte ? `<div class="mini">${esc(e.fonte)} ${esc(e.numero || "")}</div>` : "";
       }).join("")}</details>`).join("")}`;
 }
+function pintarDocsAnalise(fs) {
+  const el = $("#ia-docs");
+  if (!el) return;
+  const papeis = { boletim: "BO", relatorio_investigacao: "Relatório", rif: "RIF", documento: "Outro documento", extrato: "Extrato" };
+  const docs = (fs || []).filter((f) => ["boletim", "relatorio_investigacao", "rif", "documento"].includes(f.papel)
+    || (f.tipo === "pdf" && f.papel !== "extrato"));
+  if (!docs.length) {
+    el.innerHTML = '<p class="nota">Nenhum boletim, relatório ou PDF anexado ainda. Envie acima — o texto entra na análise local e, se o Gemini estiver autorizado, também na pergunta.</p>';
+    return;
+  }
+  el.innerHTML = `<table class="ia-docs-tab"><tr><th>Arquivo</th><th>Tipo</th><th>Páginas</th></tr>${docs.map((f) => {
+    const sel = `<select data-papel="${f.id}">${["boletim", "relatorio_investigacao", "rif", "documento"].map((p) =>
+      `<option value="${p}" ${(f.papel || "documento") === p ? "selected" : ""}>${papeis[p]}</option>`).join("")}</select>`;
+    return `<tr><td>${esc(f.nome_original)}</td><td>${sel}</td><td class="num">${f.n_paginas || 0}</td></tr>`;
+  }).join("")}</table>`;
+  $$("select[data-papel]").forEach((s) => (s.onchange = async () => {
+    try {
+      await api("POST", `/api/fontes/${s.dataset.papel}/papel`, { papel: s.value || null });
+      await gerarAnalise();
+    } catch (e) { alert(e.message); }
+  }));
+}
+async function enviarDocsAnalise(files) {
+  exigirCaso();
+  const el = $("#ia-doc-status");
+  const papel = $("#ia-doc-papel").value;
+  const lista = Array.from(files || []);
+  if (!lista.length) return;
+  for (const arq of lista) {
+    el.innerHTML = `<span class="nota">Enviando ${esc(arq.name)}…</span>`;
+    try {
+      const r = await api("POST", `/api/casos/${exigirCaso()}/docs-analise`, arq, {
+        bruto: true,
+        cabecalhos: { "X-Nome-Arquivo": encodeURIComponent(arq.name), "X-Papel": encodeURIComponent(papel) },
+      });
+      const rel = await esperarTarefa(r.tarefa, el);
+      const n = (rel.relatorio && rel.relatorio.paginas) || 0;
+      const tipo = { boletim: "boletim de ocorrência", relatorio_investigacao: "relatório de investigação", rif: "RIF", documento: "documento" }[papel] || papel;
+      el.innerHTML = `<div class="ok"><b>${esc(arq.name)}</b> anexado como ${esc(tipo)} (${n} página(s) de texto). Atualizando a análise…</div>`;
+    } catch (e) {
+      el.innerHTML = `<div class="erro">${esc(arq.name)}: ${esc(e.message)}</div>`;
+      return;
+    }
+  }
+  if ($("#ia-doc-arquivo")) $("#ia-doc-arquivo").value = "";
+  const fs = await api("GET", `/api/casos/${exigirCaso()}/fontes`);
+  pintarDocsAnalise(fs);
+  await gerarAnalise();
+}
 async function carregarIA() {
   await verificarModelos();
   if (!estado.caso) {
+    pintarDocsAnalise([]);
     $("#ia-analise").innerHTML = `<div class="vazio"><h3>Selecione um caso no topo</h3>
       <p>Depois importe o extrato. Esta tela monta a análise sozinha, neste computador.</p>
       <button type="button" class="primario" data-aba-ir="casos">Ir para o Início</button></div>`;
@@ -941,15 +996,7 @@ async function carregarIA() {
   }
   const fs = await api("GET", `/api/casos/${exigirCaso()}/fontes`);
   $("#ia-doc").innerHTML = fs.filter((f) => f.tipo === "pdf").map((f) => `<option value="${f.id}">${esc(f.nome_original)}</option>`).join("");
-  const papeis = { boletim: "BO", relatorio_investigacao: "relatório", rif: "RIF", documento: "PDF", extrato: "extrato" };
-  $("#ia-docs").innerHTML = fs.length ? "Fontes: " + fs.map((f) => {
-    const sel = `<select data-papel="${f.id}">${["", "boletim", "relatorio_investigacao", "rif", "documento", "extrato"].map((p) => `<option value="${p}" ${(f.papel || "") === p ? "selected" : ""}>${papeis[p] || "(papel)"}</option>`).join("")}</select>`;
-    return `${esc(f.nome_original)} ${sel}`;
-  }).join(" · ") : "Nenhuma fonte neste caso. Importe extratos e o BO na etapa 1. Importar.";
-  $$("select[data-papel]").forEach((s) => (s.onchange = async () => {
-    try { await api("POST", `/api/fontes/${s.dataset.papel}/papel`, { papel: s.value || null }); }
-    catch (e) { alert(e.message); }
-  }));
+  pintarDocsAnalise(fs);
   if (!fs.length) {
     pintarAnalise(null);
     const alvo = $("#ia-analise");
@@ -1077,9 +1124,22 @@ async function gerarAnalise() {
     });
     const a = await esperarTarefa(r.tarefa, el);
     pintarAnalise(a);
+    const linhaPessoa = (p) => [p.nome, p.doc].filter(Boolean).join(" ");
+    if (a.vitimas && a.vitimas.length && !$("#ia-vitimas").value.trim()) {
+      $("#ia-vitimas").value = a.vitimas.map(linhaPessoa).join("\n");
+    }
+    if (a.investigados && a.investigados.length && !$("#ia-investigados").value.trim()) {
+      $("#ia-investigados").value = a.investigados.map(linhaPessoa).join("\n");
+    }
   } catch (e) { msg(el, e.message); }
 }
 $("#btn-analise").onclick = () => gerarAnalise();
+if ($("#ia-doc-arquivo")) {
+  $("#ia-doc-arquivo").addEventListener("change", () => {
+    const files = $("#ia-doc-arquivo").files;
+    if (files && files.length) enviarDocsAnalise(files);
+  });
+}
 $("#btn-ia-nova").onclick = () => { estado.conversaId = null; pintarChat([]); $("#ia-resposta").innerHTML = ""; };
 $("#btn-ia").onclick = async () => {
   const el = $("#ia-resposta");
