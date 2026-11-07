@@ -5,7 +5,7 @@ const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const estado = { caso: null, filtros: {}, facetas: [], fontes: [], geralSel: {}, acessosFiltros: {}, previa: null, fonteAtual: null,
-  gFiltros: {}, conversaId: null, grafoCtrl: null };
+  gFiltros: {}, conversaId: null, grafoCtrl: null, grafoPos: {}, grafoCurva: {}, grafoOff: null };
 
 function usuario() { return $("#usuario").value.trim(); }
 
@@ -570,32 +570,123 @@ $("#btn-grafo-limpar").onclick = () => {
   if ($(s)) $(s).addEventListener("change", () => agendarGrafo());
 });
 $("#g-usar-pesquisa").addEventListener("change", () => agendarGrafo());
-function ligarPanZoom(svg) {
+function ligarGrafoInterativo(svg, mundo) {
   const cena = svg.querySelector("#grafo-cena");
-  let x = 0, y = 0, s = 1, arr = false, lx = 0, ly = 0;
-  const aplicar = () => cena.setAttribute("transform", `translate(${x} ${y}) scale(${s})`);
+  let panX = 0, panY = 0, escala = 1;
+  let gesto = null, last = null, arrastou = false;
+  if (estado.grafoOff) estado.grafoOff();
+  const aplicarPan = () => cena.setAttribute("transform", `translate(${panX} ${panY}) scale(${escala})`);
+  const vista = (e) => {
+    const r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal;
+    return { x: (e.clientX - r.left) * vb.width / r.width, y: (e.clientY - r.top) * vb.height / r.height };
+  };
+  const cenaPt = (e) => {
+    const v = vista(e);
+    return { x: (v.x - panX) / escala, y: (v.y - panY) / escala };
+  };
   const zoomEm = (mx, my, fator) => {
-    const ns = Math.min(8, Math.max(0.12, s * fator));
-    x = mx - (mx - x) * ns / s; y = my - (my - y) * ns / s; s = ns; aplicar();
+    const ns = Math.min(8, Math.max(0.12, escala * fator));
+    panX = mx - (mx - panX) * ns / escala; panY = my - (my - panY) * ns / escala; escala = ns; aplicarPan();
   };
-  const ponto = (e) => {
-    const r = svg.getBoundingClientRect();
-    const vb = svg.viewBox.baseVal;
-    return [(e.clientX - r.left) * vb.width / r.width, (e.clientY - r.top) * vb.height / r.height];
+  const geom = (a) => {
+    const p = mundo.id[a.de], q = mundo.id[a.para];
+    const dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy) || 1;
+    const r1 = mundo.rai[p.id] + 1.5, r2 = mundo.rai[q.id] + 8;
+    if (a.cx == null) {
+      a.cx = (p.x + q.x) / 2 + (-dy / d) * 16;
+      a.cy = (p.y + q.y) / 2 + (dx / d) * 16;
+    }
+    return { x1: p.x + dx / d * r1, y1: p.y + dy / d * r1, x2: q.x - dx / d * r2, y2: q.y - dy / d * r2, cx: a.cx, cy: a.cy };
   };
-  svg.addEventListener("wheel", (e) => { e.preventDefault(); const [mx, my] = ponto(e); zoomEm(mx, my, e.deltaY < 0 ? 1.18 : 1 / 1.18); }, { passive: false });
-  svg.addEventListener("mousedown", (e) => { if (e.button !== 0) return; arr = true; lx = e.clientX; ly = e.clientY; });
-  window.addEventListener("mousemove", (e) => {
-    if (!arr) return;
-    const r = svg.getBoundingClientRect(); const vb = svg.viewBox.baseVal;
-    x += (e.clientX - lx) * vb.width / r.width; y += (e.clientY - ly) * vb.height / r.height;
-    lx = e.clientX; ly = e.clientY; aplicar();
+  const dPath = (t) => `M ${t.x1} ${t.y1} Q ${t.cx} ${t.cy} ${t.x2} ${t.y2}`;
+  const redesenharAresta = (a) => {
+    const t = geom(a), k = a.i;
+    const path = svg.querySelector(`path.aresta[data-i="${k}"]`);
+    const hit = svg.querySelector(`path.aresta-hit[data-i="${k}"]`);
+    const alca = svg.querySelector(`circle.aresta-alca[data-i="${k}"]`);
+    const lab = svg.querySelector(`text.aresta-rotulo[data-i="${k}"]`);
+    if (path) path.setAttribute("d", dPath(t));
+    if (hit) hit.setAttribute("d", dPath(t));
+    if (alca) { alca.setAttribute("cx", t.cx); alca.setAttribute("cy", t.cy); }
+    if (lab) { lab.setAttribute("x", (t.cx * 2 + t.x1 + t.x2) / 4); lab.setAttribute("y", (t.cy * 2 + t.y1 + t.y2) / 4); }
+  };
+  const redesenharNo = (n) => {
+    const g = svg.querySelector(`g.no-grafo[data-i="${n.i}"]`);
+    if (!g) return;
+    const r = mundo.rai[n.id];
+    g.querySelectorAll("circle").forEach((c) => { c.setAttribute("cx", n.x); c.setAttribute("cy", n.y); });
+    const tx = g.querySelector("text");
+    if (tx) { tx.setAttribute("x", n.x); tx.setAttribute("y", n.y + r + 16); }
+    mundo.ars.filter((a) => a.de === n.id || a.para === n.id).forEach(redesenharAresta);
+    $$("#svg-grafo .ligacao").forEach((ln) => {
+      const p = mundo.id[ln.dataset.de], q = mundo.id[ln.dataset.para];
+      if (!p || !q) return;
+      ln.setAttribute("x1", p.x); ln.setAttribute("y1", p.y); ln.setAttribute("x2", q.x); ln.setAttribute("y2", q.y);
+    });
+  };
+  const onMove = (e) => {
+    if (!gesto) return;
+    const pt = cenaPt(e);
+    const dx = pt.x - last.x, dy = pt.y - last.y;
+    if (Math.hypot(pt.x - gesto.ox, pt.y - gesto.oy) > 3) arrastou = true;
+    if (gesto.tipo === "pan") {
+      const v = vista(e);
+      panX += v.x - last.vx; panY += v.y - last.vy;
+      last = { x: pt.x, y: pt.y, vx: v.x, vy: v.y };
+      aplicarPan();
+      return;
+    }
+    if (gesto.tipo === "no") {
+      gesto.no.x += dx; gesto.no.y += dy;
+      estado.grafoPos[gesto.no.id] = { x: gesto.no.x, y: gesto.no.y };
+      redesenharNo(gesto.no);
+    } else if (gesto.tipo === "aresta") {
+      gesto.aresta.cx += dx; gesto.aresta.cy += dy;
+      estado.grafoCurva[gesto.aresta.de + "\t" + gesto.aresta.para] = { cx: gesto.aresta.cx, cy: gesto.aresta.cy };
+      redesenharAresta(gesto.aresta);
+    }
+    last = { x: pt.x, y: pt.y, vx: vista(e).x, vy: vista(e).y };
+  };
+  const onUp = () => {
+    if (gesto && gesto.el) gesto.el.classList.remove("arrastando");
+    gesto = null;
+    svg.style.cursor = "";
+  };
+  svg.addEventListener("wheel", (e) => { e.preventDefault(); const v = vista(e); zoomEm(v.x, v.y, e.deltaY < 0 ? 1.16 : 1 / 1.16); }, { passive: false });
+  svg.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return;
+    const alca = e.target.closest(".aresta-alca, .aresta-hit");
+    const noEl = e.target.closest(".no-grafo");
+    const pt = cenaPt(e), v = vista(e);
+    last = { x: pt.x, y: pt.y, vx: v.x, vy: v.y };
+    arrastou = false;
+    if (alca) {
+      const a = mundo.ars[+alca.dataset.i];
+      if (!a) return;
+      gesto = { tipo: "aresta", aresta: a, ox: pt.x, oy: pt.y, el: alca };
+      svg.style.cursor = "grabbing";
+      e.preventDefault();
+      e.stopPropagation();
+    } else if (noEl) {
+      const n = mundo.nos[+noEl.dataset.i];
+      if (!n) return;
+      gesto = { tipo: "no", no: n, ox: pt.x, oy: pt.y, el: noEl };
+      noEl.classList.add("arrastando");
+      svg.style.cursor = "grabbing";
+      e.preventDefault();
+      e.stopPropagation();
+    } else {
+      gesto = { tipo: "pan", ox: pt.x, oy: pt.y };
+    }
   });
-  window.addEventListener("mouseup", () => { arr = false; });
+  window.addEventListener("mousemove", onMove);
+  window.addEventListener("mouseup", onUp);
+  estado.grafoOff = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
   return {
     mais: () => zoomEm(svg.viewBox.baseVal.width / 2, svg.viewBox.baseVal.height / 2, 1.25),
     menos: () => zoomEm(svg.viewBox.baseVal.width / 2, svg.viewBox.baseVal.height / 2, 0.8),
-    reset: () => { x = 0; y = 0; s = 1; aplicar(); },
+    reset: () => { panX = 0; panY = 0; escala = 1; aplicarPan(); },
+    arrastou: () => arrastou,
   };
 }
 function destacarGrafo(termo) {
@@ -660,11 +751,11 @@ async function gerarGrafo() {
     return;
   }
   const W = 1600, H = 980;
-  const nos = g.nos.map((n) => Object.assign({}, n));
+  const nos = g.nos.map((n, i) => Object.assign({ i }, n));
   const maxVol = Math.max(1, ...nos.map((n) => n.volume || 0));
   posicionarNos(nos, W, H);
   const id = Object.fromEntries(nos.map((n) => [n.id, n]));
-  const ars = g.arestas.filter((a) => id[a.de] && id[a.para]);
+  const ars = g.arestas.filter((a) => id[a.de] && id[a.para]).map((a, i) => Object.assign({ i }, a));
   const rai = Object.fromEntries(nos.map((n) => [n.id, raioNo(n, maxVol)]));
   for (let it = 0; it < 280; it++) {
     for (const a of nos) for (const b of nos) {
@@ -687,42 +778,52 @@ async function gerarGrafo() {
       n.vx *= 0.55; n.vy *= 0.55;
     }
   }
+  nos.forEach((n) => {
+    const p = estado.grafoPos[n.id];
+    if (p) { n.x = p.x; n.y = p.y; }
+  });
   const maxA = Math.max(1, ...ars.map((a) => a.valor || 0));
   const corNo = { conta: "#e0b14a", contraparte: "#3ecfbf", nao_distribuido: "#8b95a7" };
   const defs = `<defs>
-    <marker id="seta" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,1 L12,6 L0,11 z" fill="#d7e3f5"/></marker>
-    <marker id="seta-nd" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,1 L12,6 L0,11 z" fill="#7a8494"/></marker>
+    <marker id="seta" markerUnits="userSpaceOnUse" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,1.4 L9,5 L0,8.6 z" fill="#d7e3f5"/></marker>
+    <marker id="seta-nd" markerUnits="userSpaceOnUse" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,1.4 L9,5 L0,8.6 z" fill="#7a8494"/></marker>
     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
   </defs>`;
   let svg = `<svg id="svg-grafo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${defs}<g id="grafo-cena">`;
-  const pontas = (p, q) => {
+  const geomA = (a) => {
+    const p = id[a.de], q = id[a.para];
     const dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy) || 1;
-    return { x1: p.x + dx / d * (rai[p.id] + 2), y1: p.y + dy / d * (rai[p.id] + 2),
-      x2: q.x - dx / d * (rai[q.id] + 10), y2: q.y - dy / d * (rai[q.id] + 10),
-      mx: (p.x + q.x) / 2, my: (p.y + q.y) / 2, nx: -dy / d, ny: dx / d };
+    const saved = estado.grafoCurva[a.de + "\t" + a.para];
+    if (saved) { a.cx = saved.cx; a.cy = saved.cy; }
+    else if (a.cx == null) {
+      a.cx = (p.x + q.x) / 2 + (-dy / d) * 16;
+      a.cy = (p.y + q.y) / 2 + (dx / d) * 16;
+    }
+    return { x1: p.x + dx / d * (rai[p.id] + 1.5), y1: p.y + dy / d * (rai[p.id] + 1.5),
+      x2: q.x - dx / d * (rai[q.id] + 8), y2: q.y - dy / d * (rai[q.id] + 8), cx: a.cx, cy: a.cy };
   };
   for (const a of ars) {
-    const p = id[a.de], q = id[a.para], t = pontas(p, q);
-    const curv = 26 + (String(p.id).length + String(q.id).length) % 18;
-    const cx = t.mx + t.nx * curv, cy = t.my + t.ny * curv;
-    const w = 1.4 + 7 * (a.valor || 0) / maxA;
-    const op = 0.45 + 0.4 * (a.valor || 0) / maxA;
-    svg += `<path d="M ${t.x1} ${t.y1} Q ${cx} ${cy} ${t.x2} ${t.y2}" fill="none" stroke="${a.nd ? "#7a8494" : "#9fb4d1"}" stroke-width="${w}" stroke-dasharray="${a.nd ? "5,4" : ""}" opacity="${op}" marker-end="url(#${a.nd ? "seta-nd" : "seta"})"><title>${esc(a.valor_fmt)} em ${a.n} lançamento(s)</title></path>`;
+    const t = geomA(a);
+    const w = 1.15 + 2.8 * (a.valor || 0) / maxA;
+    const op = 0.5 + 0.4 * (a.valor || 0) / maxA;
+    const d = `M ${t.x1} ${t.y1} Q ${t.cx} ${t.cy} ${t.x2} ${t.y2}`;
+    svg += `<path class="aresta-hit" data-i="${a.i}" d="${d}" fill="none" stroke="transparent" stroke-width="16"></path>`;
+    svg += `<path class="aresta" data-i="${a.i}" d="${d}" fill="none" stroke="${a.nd ? "#7a8494" : "#9fb4d1"}" stroke-width="${w}" stroke-dasharray="${a.nd ? "5,4" : ""}" opacity="${op}" marker-end="url(#${a.nd ? "seta-nd" : "seta"})"><title>${esc(a.valor_fmt)} em ${a.n} lançamento(s)</title></path>`;
+    svg += `<circle class="aresta-alca" data-i="${a.i}" cx="${t.cx}" cy="${t.cy}" r="5"></circle>`;
   }
   ars.slice().sort((a, b) => (b.valor || 0) - (a.valor || 0)).slice(0, 14).forEach((a) => {
     if (a.nd) return;
-    const p = id[a.de], q = id[a.para], t = pontas(p, q);
-    const curv = 26 + (String(p.id).length + String(q.id).length) % 18;
-    svg += `<text x="${t.mx + t.nx * (curv + 8)}" y="${t.my + t.ny * (curv + 8)}" text-anchor="middle" font-size="11" fill="#f0e2b6" font-family="Segoe UI, Arial">${esc(a.valor_fmt)}</text>`;
+    const t = geomA(a);
+    svg += `<text class="aresta-rotulo" data-i="${a.i}" x="${(t.cx * 2 + t.x1 + t.x2) / 4}" y="${(t.cy * 2 + t.y1 + t.y2) / 4}" text-anchor="middle" font-size="11" fill="#f0e2b6" font-family="Segoe UI, Arial">${esc(a.valor_fmt)}</text>`;
   });
   for (const l of g.ligacoes) {
     const p = id[l.de], q = id[l.para];
     if (!p || !q) continue;
-    svg += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="${l.hipotese ? "#e0b14a" : "#c084fc"}" stroke-dasharray="3,5" stroke-width="2" opacity=".75"><title>${esc(l.tipo)}</title></line>`;
+    svg += `<line class="ligacao" data-de="${esc(l.de)}" data-para="${esc(l.para)}" x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="${l.hipotese ? "#e0b14a" : "#c084fc"}" stroke-dasharray="3,5" stroke-width="2" opacity=".75"><title>${esc(l.tipo)}</title></line>`;
   }
   for (const n of nos) {
     const r = rai[n.id], fill = corNo[n.tipo] || "#8b95a7";
-    svg += `<g class="no-grafo" data-id="${esc(n.id)}" data-rotulo="${esc(n.rotulo)} ${esc(n.detalhe || "")}" style="cursor:pointer">
+    svg += `<g class="no-grafo" data-i="${n.i}" data-id="${esc(n.id)}" data-rotulo="${esc(n.rotulo)} ${esc(n.detalhe || "")}">
       <circle cx="${n.x}" cy="${n.y}" r="${r + 6}" fill="${fill}" opacity=".18" filter="url(#glow)"></circle>
       <circle class="no-nucleo" cx="${n.x}" cy="${n.y}" r="${r}" fill="${fill}" stroke="#0b1424" stroke-width="2.5"></circle>
       <text x="${n.x}" y="${n.y + r + 18}" text-anchor="middle" font-size="${n.tipo === "conta" ? 13 : 12}" font-weight="${n.tipo === "conta" ? 600 : 400}" fill="#f4f1e8" stroke="#0b1424" stroke-width="4" paint-order="stroke" font-family="Segoe UI, Arial">${esc(String(n.rotulo || "").slice(0, 36))}</text></g>`;
@@ -734,7 +835,7 @@ async function gerarGrafo() {
         <div><i style="background:#3ecfbf"></i>Quem enviou ou recebeu</div>
         <div><i style="background:#c084fc"></i>Mesmo CPF/CNPJ</div>
         <div><i style="background:#e0b14a"></i>Hipótese só por nome</div>
-        <p class="mini">Setas = direção do registro, não prova de origem do dinheiro. Arraste para mover · role para zoom.</p>
+        <p class="mini">Como no Mercure e no i2: arraste a pessoa ou a conta; puxe o ponto da seta para curvá-la. Fundo = mover o mapa · role = zoom. Setas = direção do registro, não prova de origem do dinheiro.</p>
         ${g.omitidos ? `<p class="mini">${g.omitidos} nós menores foram omitidos.</p>` : ""}
       </div>
       <div class="grafo-ferramentas"><button type="button" id="gz-mais" title="Aproximar">+</button><button type="button" id="gz-menos" title="Afastar">−</button><button type="button" id="gz-reset" title="Ajustar">⊡</button><button type="button" id="gz-png" title="Baixar PNG">PNG</button></div>
@@ -742,13 +843,14 @@ async function gerarGrafo() {
       ${svg}
     </div>
     <p class="aviso">${esc(g.aviso)}</p>`;
-  estado.grafoCtrl = ligarPanZoom($("#svg-grafo"));
+  estado.grafoCtrl = ligarGrafoInterativo($("#svg-grafo"), { nos, id, ars, rai });
   $("#gz-mais").onclick = () => estado.grafoCtrl.mais();
   $("#gz-menos").onclick = () => estado.grafoCtrl.menos();
   $("#gz-reset").onclick = () => estado.grafoCtrl.reset();
   if ($("#gz-png")) $("#gz-png").onclick = baixarGrafoPng;
   $$("#svg-grafo .no-grafo").forEach((el) => (el.onclick = (e) => {
     e.stopPropagation();
+    if (estado.grafoCtrl && estado.grafoCtrl.arrastou()) return;
     const n = id[el.dataset.id];
     if (!n) return;
     const lig = ars.filter((a) => a.de === n.id || a.para === n.id);

@@ -41,7 +41,7 @@ Por padrão o programa **não envia dados de caso à internet**. O atualizador c
 | 2. Movimentações | Lista e totais com **filtros de múltipla escolha**: CPF/CNPJ, nomes, contas, bancos, PIX, tipo, descrição, mês, data, IP, cidade, status, arquivo e remessa. |
 | Pesquisa geral | Lista **tudo** o que foi encontrado em todos os documentos (extratos, cadastros, acessos, RIF, texto de PDF): CPF, CNPJ, nomes, bancos, contas, PIX, ID PIX, e-mails, telefones, IPs, coordenadas, cidades, dispositivos e datas. Marque valores e veja onde cada um aparece (arquivo, página/linha). |
 | IP / Geolocalização | Registros de acesso de qualquer banco: IP, porta, data/hora com fuso original, latitude/longitude, cidade, dispositivo; gráfico de dispersão das coordenadas sem mapa da internet. |
-| 3. Grafo | Mapa de transferências **monta sozinho** (contas e quem enviou/recebeu), pan e zoom; sequências de repasses rotuladas como **possibilidade**. |
+| 3. Grafo | Mapa de transferências **monta sozinho** (contas e quem enviou/recebeu). Arraste pessoas, contas e setas (como no Mercure e no i2); pan e zoom; sequências de repasses rotuladas como **possibilidade**. |
 | Duplicatas | Revisão humana de registros repetidos entre abas/arquivos e dos dois lados de transferências. |
 | RIF | Comunicações, envolvidos e ocorrências, **separados** dos extratos e fora dos totais. |
 | PDF / OCR | Texto por página, OCR local opcional (Tesseract/Poppler) e revisão por caixa delimitadora. |

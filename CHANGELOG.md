@@ -1,5 +1,8 @@
 # Histórico de versões
 
+## 3.4.4
+- **Grafo (estilo Mercure / i2):** setas menores; arraste pessoas e contas; puxe o ponto no meio da ligação para curvar a seta. O fundo continua movendo o mapa.
+
 ## 3.4.3
 - **Análise / Gemini:** na própria aba dá para anexar boletim de ocorrência, relatório de investigação, RIF ou outro documento (PDF, TXT ou MD). O texto entra na análise preliminar e no rascunho de relatório; só vai ao Google se a chave e a autorização do Gemini estiverem ativas.
 

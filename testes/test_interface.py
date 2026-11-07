@@ -18,7 +18,7 @@ def _ler(nome):
 
 class TestInterfaceArquivos(unittest.TestCase):
     def test_versao(self):
-        self.assertEqual(VERSAO, "3.4.3")
+        self.assertEqual(VERSAO, "3.4.4")
 
     def test_html_fluxo_simples(self):
         html = _ler("index.html")
@@ -35,6 +35,7 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn('id="ia-doc-soltar"', html)
         self.assertIn('id="ia-doc-papel"', html)
         self.assertIn("O mapa monta sozinho", html)
+        self.assertIn("Mercure", html)
         self.assertNotIn("Gerar grafo", html)
 
     def test_js_auto_grafo_e_analise(self):
@@ -49,6 +50,10 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn("aoVivo", js)
         self.assertIn("Pode marcar várias. Cada caixa já aplica.", js)
         self.assertIn("agendarGrafo", js)
+        self.assertIn("ligarGrafoInterativo", js)
+        self.assertIn("aresta-alca", js)
+        self.assertIn('markerUnits="userSpaceOnUse"', js)
+        self.assertNotIn("function ligarPanZoom", js)
         self.assertIn("Este programa está desatualizado", js)
         self.assertIn("verificarAtualizacao(false)", js)
         self.assertIn("enviarDocsAnalise", js)
@@ -62,6 +67,8 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn("#0b1424", css)
         self.assertIn(".vazio-grafo", css)
         self.assertIn("ol.passos", css)
+        self.assertIn(".aresta-alca", css)
+        self.assertIn(".no-grafo", css)
 
 
 class TestGrafoAposImportar(CasoTeste):

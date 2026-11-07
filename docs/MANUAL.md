@@ -38,7 +38,7 @@ Reúne identificadores de todas as fontes: extratos (lançamento e origem/destin
 
 - O grafo **monta sozinho** ao abrir a aba. Contas do extrato (dourado) e quem enviou/recebeu (verde-água); setas na direção dos registros, com o valor nas principais; espessura proporcional ao volume. Ligação lilás = mesmo CPF/CNPJ do titular; dourada tracejada = hipótese só por nome.
 - **Filtros** (recolhidos): pessoa, conta, valor, período, texto, volume mínimo da seta, quantidade máxima de nós. Marque as caixas: o grafo atualiza na hora e a lista permanece aberta para marcar várias. Opcionalmente reutiliza os filtros das Movimentações.
-- **Mover e zoom:** arraste o fundo para deslocar; role o mouse (ou os botões +/−) para aproximar e afastar; ⊡ volta ao enquadramento. Clique no círculo para ver o rótulo.
+- **Mover (como no Mercure e no i2):** arraste a pessoa ou a conta; puxe o ponto no meio da seta para curvá-la; arraste o fundo para deslocar o mapa. Role o mouse (ou os botões +/−) para aproximar e afastar; ⊡ volta ao enquadramento. Clique no círculo (sem arrastar) para ver o rótulo.
 - Sequências: a partir do CPF/CNPJ de um titular, procura débitos a pessoas que são titulares de outras contas do caso e, nessas contas, débitos posteriores dentro da janela de dias com valor até o recebido (mais a tolerância). Cada elo mostra fonte e linha e indica se existe o crédito correspondente na conta de destino. É sempre **possibilidade**: não demonstra que o mesmo dinheiro foi repassado.
 
 ## Análise preliminar e chat (aba 4. Análise)
