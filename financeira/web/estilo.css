@@ -73,3 +73,5 @@ canvas#ev-canvas { border:1px solid var(--borda); background:#fff; max-width:100
 #ia-analise { max-height:48vh; overflow:auto; border:1px solid var(--borda); border-radius:8px; padding:8px; background:#fff; }
 #ia-analise pre { max-height:220px; }
 .chat-composer { position:sticky; bottom:0; background:#fafbfc; padding:8px 0 4px; }
+.gemini-form label { display:block; margin:6px 0; }
+.gemini-form input[type="password"], .gemini-form input[type="text"], #gemini-endpoint { min-width:min(100%, 420px); max-width:100%; }

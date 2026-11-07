@@ -15,7 +15,7 @@ import webbrowser
 from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import (VERSAO, adaptadores, analise, auditoria, conciliacao, conhecimento, documentos, fontes, grafo, ia,
+from . import (VERSAO, adaptadores, analise, auditoria, conciliacao, conhecimento, documentos, fontes, gemini, grafo, ia,
                pesquisa, relatorio, rif, servico, util)
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -195,8 +195,11 @@ class Manipulador(BaseHTTPRequestHandler):
 
 @rota("GET", r"/api/estado")
 def r_estado(h, q):
+    g = gemini.status(h.app.pasta)
     h.enviar(200, {"versao": VERSAO, "ocr": documentos.ocr_disponivel(), "ia_endereco": ia.url_base(),
-                   "pasta_dados": h.app.pasta, "fts": h.app.b.fts})
+                   "pasta_dados": h.app.pasta, "fts": h.app.b.fts,
+                   "gemini": {"configurado": g["configurado"], "confirmado": g["confirmado"],
+                              "chave_mascarada": g.get("chave_mascarada") or ""}})
 
 
 @rota("GET", r"/api/casos")
@@ -575,7 +578,26 @@ def r_atu_aplicar(h, q):
 
 @rota("GET", r"/api/ia/modelos")
 def r_modelos(h, q):
-    h.enviar(200, ia.modelos())
+    h.enviar(200, ia.modelos(pasta=h.app.pasta))
+
+
+@rota("GET", r"/api/ia/gemini")
+def r_gemini_get(h, q):
+    h.enviar(200, gemini.status(h.app.pasta))
+
+
+@rota("POST", r"/api/ia/gemini")
+def r_gemini_post(h, q):
+    d = h.json_corpo()
+    h.enviar(200, gemini.salvar(
+        h.app.pasta, h.usuario, chave=d.get("chave"), modelo=d.get("modelo"),
+        endpoint=d.get("endpoint"), confirmado=d.get("confirmado"),
+        remover=bool(d.get("remover"))))
+
+
+@rota("POST", r"/api/ia/gemini/teste")
+def r_gemini_teste(h, q):
+    h.enviar(200, gemini.testar(h.app.pasta))
 
 
 @rota("GET", r"/api/casos/(\d+)/contexto")
@@ -634,7 +656,7 @@ def r_ia(h, q, c):
         modelo=d.get("modelo") or None, filtros=d.get("filtros"), fonte_id=d.get("fonte_id") or None,
         usar_conhecimento=bool(d.get("usar_conhecimento", True)), conversa_id=d.get("conversa_id") or None,
         hipotese_crime=d.get("hipotese_crime"), vitimas=d.get("vitimas"), investigados=d.get("investigados"),
-        gerar_analise=bool(d.get("gerar_analise", True)))
+        gerar_analise=bool(d.get("gerar_analise", True)), pasta=h.app.pasta)
     h.enviar(200, {"tarefa": tid})
 
 

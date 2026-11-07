@@ -1,5 +1,8 @@
 # Histórico de versões
 
+## 3.3.0
+- **Gemini opcional** (parceria institucional da Polícia Civil): chave em `dados/gemini.json` ou `ANALISE_GEMINI_CHAVE`, confirmação explícita de envio e modelo `gemini:` no chat. Desligado por padrão; a análise preliminar continua neste computador. O navegador não fala com o Google (CSP `connect-src 'self'`); só o processo local envia, se autorizado. Destino HTTPS em `googleapis.com` (AI Studio ou Vertex).
+
 ## 3.2.0
 - **Grafo:** filtros na própria tela (pessoa, conta, valor, período, volume mínimo, quantidade de nós), pan (arrastar) e zoom (roda do mouse e botões +/−).
 - **Análise preliminar automática** (funciona sem Ollama): BO e relatório de investigação como PDF com papel marcado; hipótese de tráfico (valores semelhantes, muitos remetentes), estelionato (destino do dinheiro da vítima após o crédito, saque/PIX/cartão) e lavagem (débito imediato, conta de passagem vs uso efetivo).

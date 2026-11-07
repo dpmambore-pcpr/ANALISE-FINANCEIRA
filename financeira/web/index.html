@@ -10,7 +10,7 @@
 </head>
 <body>
 <header>
-  <div class="marca"><b>Análise Bancária Local</b> <span id="versao"></span><br><small>Delegacia de Polícia de Mamborê - uso local, sem nuvem</small></div>
+  <div class="marca"><b>Análise Bancária Local</b> <span id="versao"></span><br><small>Delegacia de Polícia de Mamborê - uso local; Gemini só com autorização</small></div>
   <div class="topo-dir">
     <button id="btn-atu" title="Consulta o GitHub (somente o número da versão; nenhum dado seu é enviado)">Verificar atualização</button>
     <label class="mini" title="Ao abrir, consulta somente o número da versão publicada no GitHub. Nenhum dado de caso é enviado."><input type="checkbox" id="atu-auto"> avisar ao abrir</label>
@@ -203,8 +203,25 @@
 </section>
 
 <section id="aba-ia" class="aba">
-  <h2>IA local e análise preliminar automática</h2>
-  <p class="aviso">A análise preliminar é calculada pelo próprio programa (sem internet e sem Ollama): valores semelhantes, destino do dinheiro da vítima, saques/cartão, débito imediato. O chat generativo (estilo ChatGPT/Claude) usa o Ollama só em 127.0.0.1. Tudo é rascunho: confira fonte, página, linha e cálculos.</p>
+  <h2>IA, análise preliminar e Gemini</h2>
+  <p class="aviso">A análise preliminar é calculada pelo próprio programa (sem internet): valores semelhantes, destino do dinheiro da vítima, saques/cartão, débito imediato. O chat pode usar essa análise, o Ollama só em 127.0.0.1, ou o Gemini da parceria institucional (nuvem Google) se você configurar a chave e escolher um modelo Gemini. Tudo é rascunho: confira fonte, página, linha e cálculos.</p>
+
+  <div class="cartao gemini-form">
+    <h3>Gemini (parceria institucional da Polícia Civil)</h3>
+    <p class="aviso">Opcional e desligado por padrão. Se você escolher um modelo Gemini no chat, trechos do caso (totais, amostra de lançamentos, texto de BO/relatório) saem deste computador para os servidores do Google. Use só a chave da parceria da unidade. A chave fica em dados/gemini.json (fora do Git) ou em ANALISE_GEMINI_CHAVE. A análise preliminar automática continua neste computador.</p>
+    <p id="gemini-status" class="nota">Gemini desligado. Sem chave, nada é enviado à nuvem.</p>
+    <label>Chave da API <input id="gemini-chave" type="password" autocomplete="off" placeholder="cole a chave da parceria (não vai para o Git)"></label>
+    <label>Modelo preferido <input id="gemini-modelo" placeholder="gemini-2.5-flash" size="28"></label>
+    <label>Endpoint (se a unidade usar Vertex; senão deixe em branco)<br>
+      <input id="gemini-endpoint" size="70" placeholder="https://generativelanguage.googleapis.com/v1beta"></label>
+    <label><input type="checkbox" id="gemini-ok"> Autorizo o envio dos dados deste caso ao Gemini da parceria institucional</label>
+    <div>
+      <button id="btn-gemini-salvar" class="primario">Salvar chave</button>
+      <button id="btn-gemini-teste">Testar conexão (sem dados do caso)</button>
+      <button id="btn-gemini-remover">Remover chave deste computador</button>
+      <span id="gemini-info" class="nota"></span>
+    </div>
+  </div>
 
   <div class="cartao">
     <h3>Contexto do caso (BO, relatório, hipótese)</h3>
@@ -229,9 +246,9 @@
 
   <div class="cartao">
     <h3>Chat</h3>
-    <p class="nota">Funciona mesmo sem Ollama (responde com a análise calculada). Com Ollama local, o modelo redige em cima desses números. Exemplos: «para onde foi o dinheiro da vítima?», «há valores semelhantes de tráfico?», «essa conta tem uso de cartão e saque ou só passa PIX?»</p>
-    <button id="btn-modelos">Verificar modelos locais</button>
-    <select id="ia-modelo"><option value="">(sem Ollama — análise local)</option></select>
+    <p class="nota">Sem modelo: responde com a análise calculada. Ollama local: redige neste computador. Gemini: redige na nuvem da parceria (os dados desta pergunta saem da máquina). Exemplos: «para onde foi o dinheiro da vítima?», «há valores semelhantes de tráfico?», «essa conta tem uso de cartão e saque ou só passa PIX?»</p>
+    <button id="btn-modelos">Verificar modelos</button>
+    <select id="ia-modelo"><option value="">(análise local — sem nuvem)</option></select>
     <span id="ia-info" class="nota"></span>
     <div><label><input type="radio" name="ia-alvo" value="mov" checked> Movimentações (filtros da Pesquisa)</label>
          <label><input type="radio" name="ia-alvo" value="doc"> Documento PDF <select id="ia-doc"></select></label>

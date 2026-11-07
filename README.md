@@ -1,6 +1,6 @@
 # Análise Bancária Local — v3
 
-Programa para organizar, pesquisar e conferir extratos bancários, dados SIMBA, RIF, cadastros e registros de acesso/IP/geolocalização **no próprio computador**. A tela abre no navegador, mas tudo roda localmente em `127.0.0.1`. A IA opcional (Ollama) também é local.
+Programa para organizar, pesquisar e conferir extratos bancários, dados SIMBA, RIF, cadastros e registros de acesso/IP/geolocalização **no próprio computador**. A tela abre no navegador, mas o servidor escuta só em `127.0.0.1`. A IA pode ser local (análise automática e Ollama) ou, se a unidade configurar, o Gemini da parceria institucional.
 
 > **ATENÇÃO — este repositório é PÚBLICO.** Nunca envie para o GitHub extratos, RIF, ofícios, planilhas de caso, prints ou qualquer dado real. Os dados ficam somente na pasta `dados/` do computador, que é ignorada pelo Git. Os arquivos de `exemplos/` são fictícios.
 
@@ -31,7 +31,7 @@ Dê dois cliques em **`ATUALIZAR_WINDOWS.bat`** (Linux: `./ATUALIZAR_LINUX.sh`).
 
 Sem internet no computador da delegacia: baixe o ZIP em outro computador autorizado e rode `runtime_windows\python.exe atualizar.py --zip CAMINHO\DO\ARQUIVO.zip`.
 
-O atualizador é o único componente que acessa a internet, e só quando você o executa. O programa em si não faz conexões externas.
+Por padrão o programa **não envia dados de caso à internet**. O atualizador consulta só o GitHub (número da versão / pacote). O **Gemini**, se a unidade colar a chave da parceria e o analista escolher um modelo Gemini, envia trechos do caso aos servidores do Google — sempre com a caixa de autorização marcada. Sem isso, nada sai da máquina.
 
 ## O que o programa faz
 
@@ -47,7 +47,7 @@ O atualizador é o único componente que acessa a internet, e só quando você o
 | PDF / OCR | Texto por página, OCR local opcional (Tesseract/Poppler) e revisão por caixa delimitadora. |
 | Marcar evidências | Retângulo, círculo e seta sobre página/imagem/captura colada (Ctrl+V); a imagem marcada vai para o relatório. |
 | Relatório | DOCX, PDF ou HTML com filtros, alcance, totais, fontes com SHA-256, memória de cálculo com arquivo/linha e ressalvas. |
-| IA e análise | Análise preliminar automática (tráfico, estelionato, lavagem) a partir de extratos, RIF, BO e relatório; chat local que funciona sem Ollama e, se o Ollama estiver em `127.0.0.1`, redige como um modelo generativo. Veja [docs/IA_LOCAL.md](docs/IA_LOCAL.md). |
+| IA e análise | Análise preliminar automática (tráfico, estelionato, lavagem) a partir de extratos, RIF, BO e relatório; chat local (sem Ollama), Ollama em `127.0.0.1`, ou Gemini da parceria (nuvem, opt-in). Veja [docs/IA_LOCAL.md](docs/IA_LOCAL.md). |
 
 Regras de cálculo, leiautes e limitações: [docs/MANUAL.md](docs/MANUAL.md) e [docs/LEIAUTES.md](docs/LEIAUTES.md). Segurança: [docs/SEGURANCA.md](docs/SEGURANCA.md).
 

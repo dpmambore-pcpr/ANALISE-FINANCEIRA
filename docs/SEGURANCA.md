@@ -2,7 +2,8 @@
 
 - **Repositório público**: o `.gitignore` bloqueia `dados/`, bancos SQLite, runtime, Ollama, modelos e relatórios gerados. Mesmo assim, nunca arraste arquivos de caso para o site do GitHub. Use apenas os exemplos fictícios para demonstrar problemas.
 - **Servidor**: escuta somente em `127.0.0.1`; exige a chave de sessão exibida no terminal (cookie `HttpOnly`, `SameSite=Strict`); confere o cabeçalho `Host`; recusa requisições de escrita sem o cabeçalho próprio da interface; envia `Content-Security-Policy` restritiva e não carrega nada da internet.
-- **IA**: somente `http://127.0.0.1`, sem proxies, modelos de nuvem recusados. O conteúdo dos documentos é delimitado como dado e não como instrução.
+- **IA local (Ollama)**: somente `http://127.0.0.1`, sem proxies, modelos de nuvem do Ollama recusados. O conteúdo dos documentos é delimitado como dado e não como instrução.
+- **Gemini (opt-in)**: desligado por padrão. Só envia se houver chave, confirmação na tela (ou `ANALISE_GEMINI_CHAVE` definida pelo administrador) e o analista escolher um modelo `gemini:`. Destino só HTTPS em `generativelanguage.googleapis.com` ou `*-aiplatform.googleapis.com`. A chave não volta nas APIs (só mascarada) e não vai para o Git (`dados/gemini.json`). O navegador não abre conexão com o Google (`connect-src 'self'`). A auditoria registra o uso do Gemini, sem a chave.
 - **Originais**: guardados sem alteração, com SHA-256 conferível na aba Fontes. A importação recusa original cujo SHA-256 não confere.
 - **Auditoria**: ações relevantes ficam registradas por caso.
 - **Atualizador**: só acessa `github.com`/`codeload.github.com` por HTTPS, mostra o SHA-256 do pacote, recusa caminhos suspeitos, faz cópia da versão anterior e não toca nas pastas protegidas.

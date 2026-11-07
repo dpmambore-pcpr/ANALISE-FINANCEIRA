@@ -46,7 +46,7 @@ Reúne identificadores de todas as fontes: extratos (lançamento e origem/destin
 1. Importe extratos normalmente. Importe o **boletim de ocorrência** e o **relatório de investigação** como PDF → Extrair texto, marcando o papel (BO / relatório).
 2. Na aba **IA e análise**, informe a hipótese (tráfico, estelionato, lavagem ou detectar no texto), a vítima (nome/CPF) e o investigado.
 3. **Gerar análise preliminar** calcula, sem Ollama: valores semelhantes, destino do dinheiro da vítima, saques/cartão vs conta de passagem, débito imediato.
-4. **Perguntar** abre um chat. Sem Ollama, a resposta vem dessa análise. Com Ollama local, o modelo redige com os números já calculados. Enter envia; Shift+Enter quebra a linha.
+4. **Perguntar** abre um chat. Sem modelo, a resposta vem dessa análise. Com Ollama local, o modelo redige neste computador. Com Gemini da parceria (chave + autorização + modelo Gemini no seletor), a pergunta vai à nuvem Google; o programa avisa isso na resposta. Enter envia; Shift+Enter quebra a linha.
 
 ## Desfazer e auditoria
 

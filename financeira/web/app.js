@@ -63,7 +63,7 @@ function abrirAba(nome) {
     rif: carregarRif, documentos: carregarDocs, evidencias: carregarEvidencias, relatorio: carregarRelImagens,
     conhecimento: carregarConhecimento, auditoria: carregarAuditoria, acessos: carregarAcessos, ia: carregarIA,
     grafo: carregarGrafoFiltros, casos: carregarCasos };
-  if (carregar[nome] && (estado.caso || nome === "casos" || nome === "conhecimento")) carregar[nome]().catch((e) => console.error(e));
+  if (carregar[nome] && (estado.caso || nome === "casos" || nome === "conhecimento" || nome === "ia")) carregar[nome]().catch((e) => console.error(e));
 }
 
 // ------------------------------------------------------------------ casos
@@ -682,7 +682,7 @@ function corpoIA() {
 }
 function pintarChat(msgs) {
   const el = $("#ia-chat");
-  if (!msgs || !msgs.length) { el.innerHTML = '<div class="msg sistema">Nenhuma mensagem nesta conversa. Gere a análise ou pergunte — funciona sem Ollama.</div>'; return; }
+  if (!msgs || !msgs.length) { el.innerHTML = '<div class="msg sistema">Nenhuma mensagem nesta conversa. Gere a análise ou pergunte — funciona sem Ollama e sem Gemini.</div>'; return; }
   el.innerHTML = msgs.map((m) => `<div class="msg ${esc(m.papel)}">${esc(m.texto)}</div>`).join("");
   el.scrollTop = el.scrollHeight;
 }
@@ -701,6 +701,7 @@ function pintarAnalise(a) {
       }).join("")}</details>`).join("")}`;
 }
 async function carregarIA() {
+  await verificarModelos();
   if (!estado.caso) return;
   const fs = await api("GET", `/api/casos/${exigirCaso()}/fontes`);
   $("#ia-doc").innerHTML = fs.filter((f) => f.tipo === "pdf").map((f) => `<option value="${f.id}">${esc(f.nome_original)}</option>`).join("");
@@ -720,28 +721,91 @@ async function carregarIA() {
     if (ctx.investigados && ctx.investigados.length) $("#ia-investigados").value = ctx.investigados.map((v) => [v.nome, v.doc].filter(Boolean).join(" ")).join("\n");
     pintarAnalise(ctx.analise);
   } catch (e) { $("#ia-analise").innerHTML = `<div class="nota">${esc(e.message)}</div>`; }
-  await verificarModelos();
+}
+function pintarGemini(g) {
+  const st = $("#gemini-status");
+  if (!st) return;
+  if (g && g.configurado) {
+    st.textContent = "Gemini configurado (" + (g.origem || "arquivo") + ", chave " + (g.chave_mascarada || "definida") + "). "
+      + (g.confirmado ? "Envio autorizado." : "Falta marcar a autorização de envio.");
+    if (g.modelo) $("#gemini-modelo").value = g.modelo;
+    if (g.endpoint) $("#gemini-endpoint").placeholder = g.endpoint;
+  } else {
+    st.textContent = "Gemini desligado. Sem chave, nada é enviado à nuvem.";
+  }
+}
+function opcoesModelo(r) {
+  const g = r.gemini || {};
+  const gem = (g.configurado && g.confirmado && g.modelos) ? g.modelos : [];
+  let html = '<option value="">(análise local — sem nuvem)</option>';
+  gem.forEach((m) => { html += `<option value="gemini:${esc(m)}">Gemini · ${esc(m)} (nuvem da parceria)</option>`; });
+  (r.modelos || []).forEach((m) => { html += `<option value="${esc(m)}">${esc(m)} (Ollama local)</option>`; });
+  return { html, gem, g };
 }
 async function verificarModelos() {
   try {
     const r = await api("GET", "/api/ia/modelos");
     const atual = $("#ia-modelo").value;
-    $("#ia-modelo").innerHTML = '<option value="">(sem Ollama — análise local)</option>' + r.modelos.map((m) => `<option>${esc(m)}</option>`).join("");
-    if (atual && r.modelos.includes(atual)) $("#ia-modelo").value = atual;
-    else if (r.modelos.length) $("#ia-modelo").value = r.modelos[0];
+    const { html, gem, g } = opcoesModelo(r);
+    pintarGemini(g);
+    $("#ia-modelo").innerHTML = html;
+    const valores = Array.from($("#ia-modelo").options).map((o) => o.value);
+    if (atual && valores.includes(atual)) $("#ia-modelo").value = atual;
+    else if (gem.length && g.modelo && valores.includes("gemini:" + g.modelo)) $("#ia-modelo").value = "gemini:" + g.modelo;
+    else if (gem.length) $("#ia-modelo").value = "gemini:" + gem[0];
+    else if (r.modelos && r.modelos.length) $("#ia-modelo").value = r.modelos[0];
+    const partes = [];
+    if (g.configurado && g.confirmado) partes.push("Gemini autorizado (" + (g.chave_mascarada || "") + ").");
+    else if (g.configurado) partes.push("Gemini com chave, sem autorização de envio.");
     if (r.disponivel === false) {
-      $("#ia-info").textContent = (r.erro || "Ollama indisponível") + " — análise preliminar e chat local funcionam sem Ollama. " + (r.lembrete || "");
+      partes.push((r.erro || "Ollama indisponível") + " — análise local funciona sem Ollama.");
+    } else if (r.modelos && r.modelos.length) {
+      partes.push(`Ollama ${r.versao || "?"} em ${r.endereco}: ${r.modelos.length} modelo(s).`);
+      if (r.bloqueados_nuvem && r.bloqueados_nuvem.length) partes.push("Bloqueados (nuvem Ollama): " + r.bloqueados_nuvem.join(", "));
     } else {
-      $("#ia-info").textContent = r.modelos.length
-        ? `Ollama ${r.versao || "?"} em ${r.endereco}. ${r.modelos.length} modelo(s).${r.bloqueados_nuvem.length ? " Bloqueados (nuvem): " + r.bloqueados_nuvem.join(", ") : ""}`
-        : `Ollama em ${r.endereco}, nenhum modelo local. A análise preliminar e o chat determinístico funcionam assim mesmo. Baixe um modelo (ex.: ollama pull qwen3:4b-instruct) para texto mais livre.`;
+      partes.push(`Ollama em ${r.endereco}, nenhum modelo local.`);
     }
+    $("#ia-info").textContent = partes.join(" ");
   } catch (e) {
-    $("#ia-modelo").innerHTML = '<option value="">(sem Ollama — análise local)</option>';
-    $("#ia-info").textContent = e.message + " — você ainda pode gerar a análise preliminar e perguntar; as respostas virão dos cálculos do programa.";
+    $("#ia-modelo").innerHTML = '<option value="">(análise local — sem nuvem)</option>';
+    $("#ia-info").textContent = e.message + " — você ainda pode gerar a análise preliminar; as respostas virão dos cálculos do programa.";
   }
 }
 $("#btn-modelos").onclick = () => verificarModelos();
+$("#btn-gemini-salvar").onclick = async () => {
+  if (!$("#gemini-ok").checked) return alert("Marque a autorização de envio dos dados do caso ao Gemini.");
+  const corpo = { confirmado: true };
+  const chave = $("#gemini-chave").value.trim();
+  const modelo = $("#gemini-modelo").value.trim();
+  const endpoint = $("#gemini-endpoint").value.trim();
+  if (chave) corpo.chave = chave;
+  if (modelo) corpo.modelo = modelo;
+  if (endpoint) corpo.endpoint = endpoint;
+  try {
+    const r = await api("POST", "/api/ia/gemini", corpo);
+    $("#gemini-chave").value = "";
+    $("#gemini-info").textContent = "Chave salva neste computador. Escolha um modelo Gemini no chat para enviar.";
+    pintarGemini(r);
+    await verificarModelos();
+  } catch (e) { alert(e.message); }
+};
+$("#btn-gemini-teste").onclick = async () => {
+  $("#gemini-info").textContent = "Testando o Gemini (sem dados do caso)...";
+  try {
+    const r = await api("POST", "/api/ia/gemini/teste", {});
+    $("#gemini-info").textContent = "Conexão ok: " + (r.resposta || "").slice(0, 80);
+  } catch (e) { $("#gemini-info").textContent = e.message; }
+};
+$("#btn-gemini-remover").onclick = async () => {
+  if (!confirm("Remover a chave do Gemini deste computador? O chat volta a ser só local.")) return;
+  try {
+    await api("POST", "/api/ia/gemini", { remover: true });
+    $("#gemini-chave").value = "";
+    $("#gemini-ok").checked = false;
+    $("#gemini-info").textContent = "Chave removida.";
+    await verificarModelos();
+  } catch (e) { alert(e.message); }
+};
 $("#btn-contexto").onclick = async () => {
   try {
     await api("POST", `/api/casos/${exigirCaso()}/contexto`, {
