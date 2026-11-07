@@ -18,7 +18,7 @@ def _ler(nome):
 
 class TestInterfaceArquivos(unittest.TestCase):
     def test_versao(self):
-        self.assertEqual(VERSAO, "3.4.0")
+        self.assertEqual(VERSAO, "3.4.1")
 
     def test_html_fluxo_simples(self):
         html = _ler("index.html")
@@ -43,6 +43,9 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn("htmlProximosPassos", js)
         self.assertIn('abrirAba("pesquisar")', js)
         self.assertIn("ligarSoltar", js)
+        self.assertIn("aoVivo", js)
+        self.assertIn("Pode marcar várias. Cada caixa já aplica.", js)
+        self.assertIn("agendarGrafo", js)
 
     def test_css_grafo_escuro(self):
         css = _ler("estilo.css")

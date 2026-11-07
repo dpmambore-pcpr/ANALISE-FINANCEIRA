@@ -173,6 +173,7 @@ tr.consolidado td { text-decoration: line-through; color: #888; }
 .faceta-painel .topo { padding: 8px; border-bottom: 1px solid var(--borda); display: flex; gap: 4px; flex-wrap: wrap; }
 .faceta-painel .topo input { flex: 1; min-width: 150px; }
 .faceta-painel .lista { overflow: auto; padding: 4px 8px; }
+.faceta-dica { padding: 6px 10px 2px; margin: 0; }
 .faceta-painel label { display: flex; gap: 6px; padding: 3px 0; border-bottom: 1px dotted #eee; cursor: pointer; }
 .faceta-painel label span.n { margin-left: auto; color: #666; white-space: nowrap; }
 .chips span { display: inline-block; background: #eef4ff; border-radius: 12px; padding: 2px 10px; margin: 2px; font-size: 12px; }

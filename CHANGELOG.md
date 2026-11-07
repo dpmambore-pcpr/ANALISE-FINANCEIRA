@@ -1,5 +1,8 @@
 # Histórico de versões
 
+## 3.4.1
+- **Grafo:** ao marcar uma caixa nos filtros, o mapa atualiza na hora (não precisa clicar em Aplicar). A lista fica aberta para marcar várias.
+
 ## 3.4.0
 - Interface mais simples para quem não é de informática: abas numeradas (Importar → Movimentações → Grafo → Análise), o restante em **Mais**.
 - **Importar:** escolha o arquivo (ou arraste) e os lançamentos aparecem na lista em seguida. Perfil de banco reconhecido já vem com as colunas preenchidas.

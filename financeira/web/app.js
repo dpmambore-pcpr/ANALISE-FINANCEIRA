@@ -376,7 +376,8 @@ $("#btn-integridade").onclick = async () => {
 };
 
 // ------------------------------------------------------------------ componente de faceta (lista para marcar)
-function criarFaceta(container, faceta, selecionados, aoMudar) {
+function criarFaceta(container, faceta, selecionados, aoMudar, opcoes) {
+  const aoVivo = !!(opcoes && opcoes.aoVivo);
   const div = document.createElement("div");
   div.className = "faceta";
   const sel = new Set(selecionados || []);
@@ -385,6 +386,7 @@ function criarFaceta(container, faceta, selecionados, aoMudar) {
     botao.textContent = `${faceta.rotulo} (${faceta.valores.length}${faceta.truncado ? "+" : ""})${sel.size ? " • " + sel.size + " marcado(s)" : ""} ▾`;
     botao.classList.toggle("com-selecao", sel.size > 0);
   };
+  const avisar = () => { atualizarBotao(); if (aoVivo) aoMudar([...sel]); };
   atualizarBotao();
   div.appendChild(botao);
   let painel = null;
@@ -395,7 +397,9 @@ function criarFaceta(container, faceta, selecionados, aoMudar) {
     painel = document.createElement("div");
     painel.className = "faceta-painel";
     painel.onclick = (e) => e.stopPropagation();
-    painel.innerHTML = `<div class="topo"><input placeholder="digite para filtrar a lista"><button data-a="todos">Marcar visíveis</button><button data-a="nenhum">Limpar</button><button data-a="ok" class="primario">Aplicar</button></div><div class="lista"></div>`;
+    painel.innerHTML = `<div class="topo"><input placeholder="digite para filtrar a lista"><button data-a="todos">Marcar visíveis</button><button data-a="nenhum">Limpar</button><button data-a="ok" class="primario">${aoVivo ? "Fechar" : "Aplicar"}</button></div>
+      ${aoVivo ? '<p class="nota faceta-dica">Pode marcar várias. Cada caixa já aplica.</p>' : ""}
+      <div class="lista"></div>`;
     const lista = $(".lista", painel);
     const busca = $("input", painel);
     const desenhar = () => {
@@ -405,14 +409,18 @@ function criarFaceta(container, faceta, selecionados, aoMudar) {
       lista.innerHTML = vis.slice(0, max).map((v, i) => `<label><input type="checkbox" data-i="${faceta.valores.indexOf(v)}" ${sel.has(v.valor) ? "checked" : ""}> <span>${esc(v.rotulo)}${v.origens ? `<div class="mini">${esc(v.origens.join(", "))}</div>` : ""}</span><span class="n">${v.n}${v.soma != null ? " · " + (v.soma / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : ""}</span></label>`).join("")
         + (vis.length > max ? `<div class="nota">Mostrando ${max} de ${vis.length}. Digite para filtrar.</div>` : "")
         + (!vis.length ? '<div class="nota">Nenhum valor.</div>' : "");
-      $$("input[type=checkbox]", lista).forEach((cb) => (cb.onchange = () => { const v = faceta.valores[+cb.dataset.i].valor; cb.checked ? sel.add(v) : sel.delete(v); atualizarBotao(); }));
+      $$("input[type=checkbox]", lista).forEach((cb) => (cb.onchange = () => {
+        const v = faceta.valores[+cb.dataset.i].valor;
+        cb.checked ? sel.add(v) : sel.delete(v);
+        avisar();
+      }));
       return vis;
     };
     let visiveis = desenhar();
     busca.oninput = () => (visiveis = desenhar());
-    painel.querySelector('[data-a="todos"]').onclick = () => { visiveis.forEach((v) => sel.add(v.valor)); visiveis = desenhar(); atualizarBotao(); };
-    painel.querySelector('[data-a="nenhum"]').onclick = () => { sel.clear(); visiveis = desenhar(); atualizarBotao(); };
-    painel.querySelector('[data-a="ok"]').onclick = () => { painel.remove(); painel = null; aoMudar([...sel]); };
+    painel.querySelector('[data-a="todos"]').onclick = () => { visiveis.forEach((v) => sel.add(v.valor)); visiveis = desenhar(); avisar(); };
+    painel.querySelector('[data-a="nenhum"]').onclick = () => { sel.clear(); visiveis = desenhar(); avisar(); };
+    painel.querySelector('[data-a="ok"]').onclick = () => { painel.remove(); painel = null; if (!aoVivo) aoMudar([...sel]); };
     div.appendChild(painel);
     busca.focus();
   };
@@ -534,9 +542,18 @@ async function carregarGrafoFiltros() {
     const facs = await api("POST", `/api/casos/${exigirCaso()}/facetas`, { filtros: lerFiltrosGrafo() });
     const cont = $("#grafo-facetas");
     cont.innerHTML = "";
-    facs.forEach((f) => criarFaceta(cont, f, estado.gFiltros[f.chave], (vals) => { estado.gFiltros[f.chave] = vals; carregarGrafoFiltros(); }));
+    facs.forEach((f) => criarFaceta(cont, f, estado.gFiltros[f.chave], (vals) => {
+      estado.gFiltros[f.chave] = vals;
+      agendarGrafo();
+    }, { aoVivo: true }));
   } catch (e) { console.error(e); }
   await gerarGrafo();
+}
+function agendarGrafo() {
+  clearTimeout(estado.grafoTimer);
+  estado.grafoTimer = setTimeout(() => gerarGrafo().catch((e) => {
+    $("#grafo-area").innerHTML = `<div class="erro">${esc(e.message)}</div>`;
+  }), 180);
 }
 $("#btn-grafo-limpar").onclick = () => {
   estado.gFiltros = {};
@@ -544,6 +561,10 @@ $("#btn-grafo-limpar").onclick = () => {
   $("#gf-maxnos").value = 80; $("#g-usar-pesquisa").checked = false;
   carregarGrafoFiltros().catch((e) => console.error(e));
 };
+["#gf-data-ini", "#gf-data-fim", "#gf-vmin", "#gf-vmax", "#gf-texto", "#gf-maxnos", "#gf-minvol"].forEach((s) => {
+  if ($(s)) $(s).addEventListener("change", () => agendarGrafo());
+});
+$("#g-usar-pesquisa").addEventListener("change", () => agendarGrafo());
 function ligarPanZoom(svg) {
   const cena = svg.querySelector("#grafo-cena");
   let x = 0, y = 0, s = 1, arr = false, lx = 0, ly = 0;

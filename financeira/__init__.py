@@ -1,3 +1,3 @@
 """Análise bancária local - Delegacia de Polícia de Mamborê (protótipo)."""
 
-VERSAO = "3.4.0"
+VERSAO = "3.4.1"
