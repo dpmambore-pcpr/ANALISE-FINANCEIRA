@@ -170,7 +170,7 @@ class TestServidor(CasoTeste):
     def test_aviso_de_atualizacao(self):
         class Falso:
             def verificar_atualizacao(self):
-                return {"instalada": "3.1.0", "disponivel": "3.2.0", "ha_nova": True}
+                return {"instalada": "3.1.0", "disponivel": "3.2.0", "ha_nova": True, "ramo": "main"}
 
         class Offline:
             def verificar_atualizacao(self):

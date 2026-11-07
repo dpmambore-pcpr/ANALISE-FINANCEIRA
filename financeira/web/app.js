@@ -878,12 +878,16 @@ $("#btn-auditoria").onclick = () => carregarAuditoria();
 // ------------------------------------------------------------------ atualização do programa
 async function verificarAtualizacao(manual) {
   const b = $("#banner-atu");
-  if (manual) b.innerHTML = '<div class="nota" style="padding:6px 16px">Consultando o GitHub...</div>';
+  if (manual) b.innerHTML = '<div class="nota" style="padding:6px 16px">Consultando o GitHub (ramo publicado; nenhum dado de caso é enviado)...</div>';
   let r;
   try { r = await api("GET", "/api/atualizacao/verificar"); } catch (e) { r = { erro: e.message }; }
   if (r.erro) { b.innerHTML = manual ? `<div class="aviso">${esc(r.erro)}</div>` : ""; return; }
-  if (!r.ha_nova) { b.innerHTML = manual ? `<div class="ok">Você já está com a versão mais recente (v${esc(r.instalada)}).</div>` : ""; return; }
-  b.innerHTML = `<div class="aviso"><b>Nova versão disponível: v${esc(r.disponivel)}</b> (instalada: v${esc(r.instalada)}). Seus casos e dados não serão alterados; uma cópia da versão atual é guardada em backup_versoes. <button id="btn-atu-aplicar">Atualizar agora</button> <span id="atu-status"></span></div>`;
+  const pub = `Publicada no GitHub (${esc(r.ramo || "main")}): <b>v${esc(r.disponivel)}</b>. Instalada neste computador: v${esc(r.instalada)}.`;
+  if (!r.ha_nova) {
+    b.innerHTML = manual ? `<div class="ok">${pub} Não há versão mais nova publicada. O botão Verificar só consulta; novidades em revisão no GitHub só aparecem depois do merge em ${esc(r.ramo || "main")}.</div>` : "";
+    return;
+  }
+  b.innerHTML = `<div class="aviso">${pub} <b>Clique em Atualizar agora</b> para baixar (seus casos em dados/ não são alterados; cópia em backup_versoes). <button id="btn-atu-aplicar" class="primario">Atualizar agora</button> <span id="atu-status"></span></div>`;
   $("#btn-atu-aplicar").onclick = async () => {
     if (!confirm(`Atualizar de v${r.instalada} para v${r.disponivel}? Seus dados serão preservados.`)) return;
     $("#btn-atu-aplicar").disabled = true;

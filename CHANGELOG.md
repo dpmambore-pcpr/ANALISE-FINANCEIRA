@@ -2,6 +2,7 @@
 
 ## 3.3.0
 - **Gemini opcional** (parceria institucional da Polícia Civil): chave em `dados/gemini.json` ou `ANALISE_GEMINI_CHAVE`, confirmação explícita de envio e modelo `gemini:` no chat. Desligado por padrão; a análise preliminar continua neste computador. O navegador não fala com o Google (CSP `connect-src 'self'`); só o processo local envia, se autorizado. Destino HTTPS em `googleapis.com` (AI Studio ou Vertex).
+- **Atualização:** o botão Verificar mostra a versão instalada e a publicada no GitHub (`main`) e deixa claro que só **Atualizar agora** baixa o pacote.
 
 ## 3.2.0
 - **Grafo:** filtros na própria tela (pessoa, conta, valor, período, volume mínimo, quantidade de nós), pan (arrastar) e zoom (roda do mouse e botões +/−).
