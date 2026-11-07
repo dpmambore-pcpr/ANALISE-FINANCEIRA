@@ -1150,7 +1150,13 @@ async function aplicarAtualizacao(r) {
 }
 function faixaNovaVersao(r) {
   const b = $("#banner-atu");
-  b.innerHTML = `<div class="aviso"><b>Nova versão v${esc(r.disponivel)}</b> (esta máquina: v${esc(r.instalada)}). Um clique atualiza; os casos em dados/ ficam. <button type="button" id="btn-atu-aplicar" class="primario">Atualizar agora</button></div>`;
+  const selo = $("#selo-atu");
+  if (selo) selo.classList.remove("oculto");
+  b.innerHTML = `<div class="faixa-desatualizado">
+    <div><b>Este programa está desatualizado</b>
+      <p>Você está na v${esc(r.instalada)}. Já existe a <b>v${esc(r.disponivel)}</b>. Atualize neste computador — os casos em dados/ não são apagados.</p></div>
+    <button type="button" id="btn-atu-aplicar" class="primario">Atualizar agora</button>
+  </div>`;
   $("#btn-atu-aplicar").onclick = () => aplicarAtualizacao(r);
 }
 async function verificarAtualizacao(manual) {
@@ -1160,26 +1166,21 @@ async function verificarAtualizacao(manual) {
   try { r = await api("GET", "/api/atualizacao/verificar"); } catch (e) { r = { erro: e.message }; }
   if (r.erro) { b.innerHTML = manual ? `<div class="aviso">${esc(r.erro)}</div>` : ""; return r; }
   if (!r.ha_nova) {
+    const selo = $("#selo-atu");
+    if (selo) selo.classList.add("oculto");
     if (manual) b.innerHTML = `<div class="ok">Você já está na versão mais recente: <b>v${esc(r.instalada)}</b> (igual ao GitHub).</div>`;
-    return r;
-  }
-  if (manual && confirm("Há uma versão nova (v" + r.disponivel + "). Atualizar agora?\n\nSeus casos e dados serão preservados.")) {
-    await aplicarAtualizacao(r);
     return r;
   }
   faixaNovaVersao(r);
   return r;
 }
 $("#btn-atu").onclick = () => verificarAtualizacao(true);
-$("#atu-auto").onchange = (ev) => api("POST", "/api/atualizacao/config", { automatica: ev.target.checked }).catch((e) => alert(e.message));
 
 // ------------------------------------------------------------------ início
 (async () => {
   const e = await api("GET", "/api/estado");
   $("#versao").textContent = "v" + e.versao;
-  const cfgAtu = await api("GET", "/api/atualizacao/config");
-  $("#atu-auto").checked = cfgAtu.automatica;
-  if (cfgAtu.automatica) verificarAtualizacao(false);
+  verificarAtualizacao(false);
   if (!usuario()) $("#usuario").focus();
   ligarSoltar();
   await carregarCasos();

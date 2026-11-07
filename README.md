@@ -17,7 +17,7 @@ Linux: `chmod +x *.sh && ./INICIAR_LINUX.sh` (usa `runtime_linux/` ou o `python3
 
 - **Instalador (recomendado):** em *Actions → instalador → Run workflow* (ou na página *Releases*, quando houver uma versão publicada) baixe `AnaliseBancariaLocal-Instalador-<versão>.exe`. Instala em `%LOCALAPPDATA%\AnaliseBancariaLocal` (sem precisar de administrador), cria atalho na área de trabalho e no Menu Iniciar. O Windows pode mostrar o aviso do SmartScreen porque o instalador não é assinado digitalmente: confira o SHA-256 informado na página e use *Mais informações → Executar assim mesmo*.
 - **Sem instalador:** extraia o ZIP e execute `INSTALAR_WINDOWS.bat` (faz o mesmo, usando só recursos do Windows).
-- **Atualizar o programa:** no topo, **Atualizar programa**. Se o GitHub tiver versão nova, confirma e baixa; os casos em `dados/` ficam; o programa tenta reabrir sozinho. Ao abrir, se *avisar ao abrir* estiver marcado, aparece uma faixa amarela com o mesmo botão. Nenhum dado de caso é enviado.
+- **Atualizar o programa:** ao abrir, se o GitHub tiver versão nova, aparece sozinha a faixa **Este programa está desatualizado** com **Atualizar agora**. Os casos em `dados/` ficam; o programa tenta reabrir sozinho. Nenhum dado de caso é enviado.
 
 ## Atualizar sem baixar tudo de novo
 

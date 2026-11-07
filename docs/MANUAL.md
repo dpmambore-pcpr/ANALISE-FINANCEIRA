@@ -50,7 +50,7 @@ Reúne identificadores de todas as fontes: extratos (lançamento e origem/destin
 
 ## Atualizar o programa
 
-No topo da tela, **Atualizar programa**. O programa consulta o GitHub; se houver versão nova, confirma e baixa. Os casos em `dados/` não são alterados. Depois ele tenta reabrir sozinho. Se *avisar ao abrir* estiver marcado, a faixa amarela aparece sozinha quando houver versão nova — clique em **Atualizar agora**.
+Ao abrir, o programa consulta o GitHub. Se a cópia estiver atrasada, aparece a faixa vermelha **Este programa está desatualizado** (versão instalada × versão nova) com **Atualizar agora**. Os casos em `dados/` não são alterados. Depois ele tenta reabrir sozinho. O botão **Atualizar programa** no topo faz a mesma consulta.
 
 ## Desfazer e auditoria
 

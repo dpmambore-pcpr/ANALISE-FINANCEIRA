@@ -1,5 +1,8 @@
 # Histórico de versões
 
+## 3.4.2
+- Ao abrir, o programa consulta o GitHub **sempre**. Se estiver atrasado, aparece uma faixa vermelha **Este programa está desatualizado** com a versão nova e o botão **Atualizar agora** — para quem recebeu uma cópia antiga ver na hora.
+
 ## 3.4.1
 - **Grafo:** ao marcar uma caixa nos filtros, o mapa atualiza na hora (não precisa clicar em Aplicar). A lista fica aberta para marcar várias.
 
