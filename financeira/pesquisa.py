@@ -11,7 +11,7 @@ Regras de cálculo:
 import csv
 import io
 
-from . import identificadores, util
+from . import identificadores, protocolo, util
 
 # chave -> (rótulo, tipo, expressão de valor, expressão de rótulo)
 FACETAS = [
@@ -42,8 +42,8 @@ FACETA = {f[0]: f for f in FACETAS}
 
 
 def _where(caso_id, filtros, exceto=None):
-    cond = ["l.caso_id=?"]
-    par = [caso_id]
+    w0, par = util.sql_in("l.caso_id", caso_id)
+    cond = [w0]
     f = filtros or {}
     for chave, (_, _, tipo, expr, _) in FACETA.items():
         vals = f.get(chave)
@@ -114,9 +114,11 @@ def descrever_filtros(b, filtros):
 
 def facetas(b, caso_id, filtros, limite=5000):
     """Para cada faceta, todos os valores possíveis (até `limite`) com contagem sob os demais filtros."""
+    caso_id = protocolo.escopo(b, caso_id)
     res = []
-    fontes = {str(r["id"]): r["nome_original"] for r in b.q("SELECT id, nome_original FROM fontes WHERE caso_id=?", (caso_id,))}
-    remessas = {str(r["id"]): r["rotulo"] for r in b.q("SELECT id, rotulo FROM remessas WHERE caso_id=?", (caso_id,))}
+    wf, pf = util.sql_in("caso_id", caso_id)
+    fontes = {str(r["id"]): r["nome_original"] for r in b.q("SELECT id, nome_original FROM fontes WHERE " + wf, pf)}
+    remessas = {str(r["id"]): r["rotulo"] for r in b.q("SELECT id, rotulo FROM remessas WHERE " + wf, pf)}
     for chave, rotulo, tipo, expr, expr_rot in FACETAS:
         w, par = _where(caso_id, filtros, exceto=chave)
         if tipo == "l":
@@ -168,6 +170,7 @@ def _ranking(b, w, par, natureza, filtros, limite=10):
 
 
 def totais(b, caso_id, filtros):
+    caso_id = protocolo.escopo(b, caso_id)
     w, par = _where(caso_id, filtros)
     t = b.q1("SELECT "
              "COALESCE(SUM(CASE WHEN l.situacao='aceito' AND l.natureza='C' THEN l.valor_centavos END),0) AS cred, "
@@ -213,9 +216,10 @@ def totais(b, caso_id, filtros):
     if len(contas) > 1:
         out["avisos"].append("A seleção reúne %d contas. Se houver transferências entre elas, a mesma operação pode aparecer como "
                              "débito em uma e crédito em outra; o total geral não elimina essa repetição." % len(contas))
-    dup = b.q1("SELECT COUNT(*) AS n FROM duplicatas d WHERE d.caso_id=? AND d.estado='pendente' AND "
+    wd, pd = util.sql_in("d.caso_id", caso_id)
+    dup = b.q1("SELECT COUNT(*) AS n FROM duplicatas d WHERE " + wd + " AND d.estado='pendente' AND "
                "(d.lanc_a IN (SELECT l.id FROM lancamentos l WHERE %s) OR d.lanc_b IN (SELECT l.id FROM lancamentos l WHERE %s))" % (w, w),
-               [caso_id] + par + par)
+               pd + par + par)
     if dup["n"]:
         out["avisos"].append("%d par(es) de duplicatas prováveis ainda sem revisão envolvem registros desta seleção." % dup["n"])
     if t["n_pend"]:
@@ -227,6 +231,7 @@ def totais(b, caso_id, filtros):
 
 
 def registros(b, caso_id, filtros, limite=500, deslocamento=0, ordem="data"):
+    caso_id = protocolo.escopo(b, caso_id)
     w, par = _where(caso_id, filtros)
     ordens = {"data": "l.data, l.hora, l.id", "valor": "l.valor_centavos DESC, l.id", "linha": "l.fonte_id, l.local, l.linha"}
     linhas = b.q("SELECT l.id, l.data, l.hora, l.fuso, l.natureza, l.valor_centavos, l.situacao, l.motivo, l.titular_nome, "
@@ -261,6 +266,7 @@ def detalhe(b, lanc_id):
 
 
 def exportar_csv(b, caso_id, filtros, limite=200000):
+    caso_id = protocolo.escopo(b, caso_id)
     w, par = _where(caso_id, dict(filtros or {}, incluir_consolidados=True))
     saida = io.StringIO()
     wr = csv.writer(saida, delimiter=";")
@@ -289,7 +295,9 @@ ROTULO_TABELA = {
 
 
 def facetas_identificadores(b, caso_id, busca=None, tabelas=None, limite=5000):
-    cond, par = ["caso_id=?"], [caso_id]
+    caso_id = protocolo.escopo(b, caso_id)
+    w0, par = util.sql_in("caso_id", caso_id)
+    cond = [w0]
     if busca:
         cond.append("(valor_norm LIKE ? OR upper(valor_original) LIKE ?)")
         t = "%" + str(busca).strip().upper() + "%"
@@ -352,14 +360,16 @@ def _contexto(b, tabela, reg_id):
 
 
 def ocorrencias(b, caso_id, selecionados, limite=3000):
+    caso_id = protocolo.escopo(b, caso_id)
     if not selecionados:
         return []
     cond = " OR ".join("(o.tipo=? AND o.valor_norm=?)" for _ in selecionados)
-    par = [caso_id]
+    wo, po = util.sql_in("o.caso_id", caso_id)
+    par = list(po)
     for s in selecionados:
         par += [s["tipo"], s["valor"]]
     linhas = b.q("SELECT o.*, f.nome_original AS fonte_nome, f.sha256 FROM ocorrencias_ident o JOIN fontes f ON f.id=o.fonte_id "
-                 "WHERE o.caso_id=? AND (%s) ORDER BY o.tipo, o.valor_norm, o.fonte_id, o.local, o.linha LIMIT ?" % cond, par + [limite])
+                 "WHERE " + wo + " AND (%s) ORDER BY o.tipo, o.valor_norm, o.fonte_id, o.local, o.linha LIMIT ?" % cond, par + [limite])
     for r in linhas:
         r["origem"] = ROTULO_TABELA.get(r["tabela"], r["tabela"])
         r["contexto"] = _contexto(b, r["tabela"], r["registro_id"])
@@ -373,7 +383,8 @@ FACETAS_ACESSO = [("ip", "IP"), ("data", "Data"), ("cidade", "Cidade"), ("uf", "
 
 
 def _where_acessos(caso_id, filtros, exceto=None):
-    cond, par = ["a.caso_id=?"], [caso_id]
+    w0, par = util.sql_in("a.caso_id", caso_id)
+    cond, par = [w0], par
     for k, _ in FACETAS_ACESSO:
         vals = (filtros or {}).get(k)
         if vals and k != exceto:
@@ -383,7 +394,9 @@ def _where_acessos(caso_id, filtros, exceto=None):
 
 
 def acessos(b, caso_id, filtros, limite=2000):
-    fontes = {str(r["id"]): r["nome_original"] for r in b.q("SELECT id, nome_original FROM fontes WHERE caso_id=?", (caso_id,))}
+    caso_id = protocolo.escopo(b, caso_id)
+    wf, pf = util.sql_in("caso_id", caso_id)
+    fontes = {str(r["id"]): r["nome_original"] for r in b.q("SELECT id, nome_original FROM fontes WHERE " + wf, pf)}
     facs = []
     for k, rot in FACETAS_ACESSO:
         w, par = _where_acessos(caso_id, filtros, exceto=k)

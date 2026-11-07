@@ -44,15 +44,20 @@
 
 <section id="aba-casos" class="aba">
   <h2>Início</h2>
-  <p class="lead">Quatro passos: criar o caso, importar o extrato, ver as movimentações e o mapa de transferências, depois ler a análise. Não precisa configurar nada de internet para isso.</p>
+  <p class="lead">Clique no caso que quer analisar, ou marque dois ou mais e use <b>Analisar juntos</b>. Também dá para só importar o arquivo: o programa lê o número SIMBA no nome (ex.: 056-PCPR-000677-20) e pergunta se cria um caso novo ou acrescenta a um já existente.</p>
   <div id="caso-resumo"></div>
   <div class="cartao">
-    <h3>Novo caso</h3>
-    <input id="novo-caso-nome" placeholder="Nome do caso (ex.: Inquérito 12/2026)" size="40">
+    <h3>Novo caso (opcional)</h3>
+    <p class="nota">Na importação o nome já sai do arquivo (Caso 677, ou Caso 677 elon musk). Use isto só se quiser criar o caso antes, sem arquivo.</p>
+    <input id="novo-caso-nome" placeholder="Nome do caso (ex.: Caso 677)" size="40">
     <input id="novo-caso-desc" placeholder="Descrição (opcional)" size="40">
     <button id="btn-criar-caso" class="primario">Criar caso</button>
   </div>
-  <div id="lista-casos"></div>
+  <div class="linha-filtros" id="estante-acoes">
+    <button type="button" id="btn-analisar-juntos" class="primario">Analisar casos marcados juntos</button>
+    <span class="nota">Marque dois ou mais para cruzar movimentações, grafo e análise no mesmo recorte.</span>
+  </div>
+  <div id="lista-casos" class="estante-casos"></div>
   <details class="cartao" id="cartao-perm">
     <summary>Permissões da equipe (opcional)</summary>
     <p class="nota">Papéis: leitor (consulta), analista (importa e marca), revisor (decide duplicatas e desfaz importações), administrador. A identificação é declarada; proteja o computador com as credenciais da unidade.</p>
@@ -70,7 +75,7 @@
 
 <section id="aba-importar" class="aba">
   <h2>1. Importar o extrato</h2>
-  <p class="lead">Escolha o arquivo. O programa lê e, se for movimentação, já mostra os lançamentos na etapa 2. O original fica só neste computador, com SHA-256.</p>
+  <p class="lead">Escolha o arquivo. O programa lê o nome (ex.: <code>056-PCPR-000677-20</code>) e pergunta se cria um caso novo ou acrescenta a um antigo. Se o nome for só o protocolo ou “extrato detalhado”, o caso fica <b>Caso 677</b>; se tiver um apelido (elon musk, casa mambore, gordo), fica <b>Caso 677 elon musk</b>. Se for movimentação, os lançamentos aparecem na etapa 2.</p>
   <div class="cartao">
     <label class="soltar" id="imp-soltar">
       <input type="file" id="imp-arquivo">

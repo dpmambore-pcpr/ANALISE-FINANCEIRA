@@ -7,7 +7,7 @@ um crédito específico.
 
 import datetime as dt
 
-from . import pesquisa, util
+from . import pesquisa, protocolo, util
 
 AVISO = ("Relações por coincidência de identificador, data e valor. Não comprovam que o mesmo dinheiro foi "
          "transferido, nem autoria, titularidade efetiva ou ilicitude.")
@@ -26,6 +26,7 @@ def _cp_key(p):
 
 
 def grafo(b, caso_id, filtros, max_nos=80, min_volume=0):
+    caso_id = protocolo.escopo(b, caso_id)
     w, par = pesquisa._where(caso_id, filtros)
     contas = {}
     for r in b.q("SELECT DISTINCT l.banco, l.agencia, l.conta, l.titular_nome, l.titular_doc_norm FROM lancamentos l WHERE " + w, par):
@@ -119,12 +120,15 @@ def sequencias(b, caso_id, inicio, janela_dias=3, tolerancia_pct=0, profundidade
     se por_nome=True) de outra conta presente no caso, procura débitos dessa outra conta dentro
     da janela, com valor até o valor recebido (+ tolerância). Repete até a profundidade.
     """
+    caso_id = protocolo.escopo(b, caso_id)
+    wl, pl = util.sql_in("l.caso_id", caso_id)
     lancs = b.q("SELECT l.id, l.data, l.hora, l.natureza, l.valor_centavos, l.parcelas_estado, l.banco, l.agencia, l.conta, "
                 "l.titular_nome, l.titular_doc_norm, l.titular_nome_norm, l.local, l.linha, f.nome_original, f.sha256 "
-                "FROM lancamentos l JOIN fontes f ON f.id=l.fonte_id WHERE l.caso_id=? AND l.situacao='aceito' "
-                "AND l.consolidado_em IS NULL AND l.data IS NOT NULL", (caso_id,))
+                "FROM lancamentos l JOIN fontes f ON f.id=l.fonte_id WHERE " + wl + " AND l.situacao='aceito' "
+                "AND l.consolidado_em IS NULL AND l.data IS NOT NULL", pl)
     partes = {}
-    for p in b.q("SELECT lancamento_id, doc_norm, nome_norm, nome, doc, valor_centavos FROM partes WHERE caso_id=?", (caso_id,)):
+    wp, pp = util.sql_in("caso_id", caso_id)
+    for p in b.q("SELECT lancamento_id, doc_norm, nome_norm, nome, doc, valor_centavos FROM partes WHERE " + wp, pp):
         partes.setdefault(p["lancamento_id"], []).append(p)
     contas_por_doc, contas_por_nome, debitos, creditos = {}, {}, {}, {}
     for l in lancs:

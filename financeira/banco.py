@@ -4,13 +4,14 @@ import os
 import sqlite3
 import threading
 
-ESQUEMA_VERSAO = 2
+ESQUEMA_VERSAO = 3
 
 ESQUEMA = r"""
 CREATE TABLE IF NOT EXISTS meta (chave TEXT PRIMARY KEY, valor TEXT);
 
 CREATE TABLE IF NOT EXISTS casos (
   id INTEGER PRIMARY KEY, nome TEXT NOT NULL, descricao TEXT,
+  protocolo TEXT, numero INTEGER, inscricao TEXT, conjunto_json TEXT,
   criado_em TEXT, criado_por TEXT
 );
 
@@ -233,6 +234,11 @@ class Banco:
             cols = [r["name"] for r in self.con.execute("PRAGMA table_info(fontes)").fetchall()]
             if "papel" not in cols:
                 self.con.execute("ALTER TABLE fontes ADD COLUMN papel TEXT")
+            ccols = [r["name"] for r in self.con.execute("PRAGMA table_info(casos)").fetchall()]
+            for col, tip in (("protocolo", "TEXT"), ("numero", "INTEGER"), ("inscricao", "TEXT"),
+                             ("conjunto_json", "TEXT")):
+                if col not in ccols:
+                    self.con.execute("ALTER TABLE casos ADD COLUMN %s %s" % (col, tip))
             self.con.execute(
                 "INSERT OR REPLACE INTO meta(chave, valor) VALUES ('esquema_versao', ?)", (str(ESQUEMA_VERSAO),))
 

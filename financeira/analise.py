@@ -8,7 +8,7 @@ trabalho, não conclusão de autoria, dolo ou ilicitude.
 import datetime as dt
 import re
 
-from . import auditoria, pesquisa, util
+from . import auditoria, pesquisa, protocolo, util
 
 AVISO = (
     "Análise preliminar automática: aponta padrões documentais e hipóteses de trabalho. "
@@ -176,8 +176,9 @@ def definir_papel_fonte(b, fonte_id, papel, usuario):
 
 
 def _docs_texto(b, caso_id, max_chars=20000):
+    w, par = util.sql_in("f.caso_id", caso_id)
     pags = b.q("SELECT f.id AS fonte_id, f.nome_original, f.sha256, f.papel, p.pagina, p.texto "
-               "FROM paginas p JOIN fontes f ON f.id=p.fonte_id WHERE f.caso_id=? ORDER BY f.id, p.pagina", (caso_id,))
+               "FROM paginas p JOIN fontes f ON f.id=p.fonte_id WHERE " + w + " ORDER BY f.id, p.pagina", par)
     blocos, total = [], 0
     for p in pags:
         trecho = (p["texto"] or "").strip()
@@ -454,12 +455,15 @@ def analisar(b, caso_id, usuario, filtros=None, hipotese_crime=None, vitimas=Non
     vitimas = ctx.get("vitimas") or []
     investigados = ctx.get("investigados") or []
 
-    blocos = _docs_texto(b, caso_id)
+    ids = protocolo.escopo(b, caso_id)
+    blocos = _docs_texto(b, ids)
+    wr, pr = util.sql_in("r.caso_id", ids)
     rifs = b.q("SELECT r.numero, r.restricao, f.nome_original, f.sha256 FROM rif_relatorios r "
-               "JOIN fontes f ON f.id=r.fonte_id WHERE r.caso_id=?", (caso_id,))
-    coms = b.q("SELECT informacoes, comunicante_nome, id_comunicacao FROM rif_comunicacoes WHERE caso_id=?", (caso_id,))
-    ocs = b.q("SELECT ocorrencia, id_comunicacao FROM rif_ocorrencias WHERE caso_id=?", (caso_id,))
-    envs = b.q("SELECT nome, doc, tipo_envolvido FROM rif_envolvidos WHERE caso_id=?", (caso_id,))
+               "JOIN fontes f ON f.id=r.fonte_id WHERE " + wr, pr)
+    wc, pc = util.sql_in("caso_id", ids)
+    coms = b.q("SELECT informacoes, comunicante_nome, id_comunicacao FROM rif_comunicacoes WHERE " + wc, pc)
+    ocs = b.q("SELECT ocorrencia, id_comunicacao FROM rif_ocorrencias WHERE " + wc, pc)
+    envs = b.q("SELECT nome, doc, tipo_envolvido FROM rif_envolvidos WHERE " + wc, pc)
     rif_txt = " ".join((c.get("informacoes") or "") for c in coms) + " " + " ".join((o.get("ocorrencia") or "") for o in ocs)
     votos = _detectar_crime([bl["texto"] for bl in blocos], rif_txt)
     if hip == "auto":

@@ -43,8 +43,8 @@ class CasoTeste(unittest.TestCase):
             f.write(dados)
         return self.fonte(p, nome, remessa_id)
 
-    def importar_tabela(self, caminho, adaptador="extrato", opcoes=None, ajuste=None, aba=None):
-        f = self.fonte(caminho)
+    def importar_tabela(self, caminho, adaptador="extrato", opcoes=None, ajuste=None, aba=None, caso=None, nome=None):
+        f = self.fonte(caminho, nome=nome, caso=caso)
         p = self.app.previa(f["id"], aba=aba)
         mapa = dict(p["sugestoes"][adaptador])
         if ajuste:

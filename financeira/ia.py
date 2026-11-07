@@ -11,7 +11,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from . import analise, auditoria, conhecimento, pesquisa, util
+from . import analise, auditoria, conhecimento, pesquisa, protocolo, util
 
 HOST = "127.0.0.1"
 PORTA_PADRAO = 11434
@@ -108,9 +108,11 @@ def _registro_txt(r):
 
 
 def contexto_movimentos(b, caso_id, filtros, max_registros=150):
+    caso_id = protocolo.escopo(b, caso_id)
     t = pesquisa.totais(b, caso_id, filtros)
     regs = pesquisa.registros(b, caso_id, filtros, limite=max_registros)
-    fontes = b.q("SELECT DISTINCT f.nome_original, f.sha256 FROM fontes f JOIN lancamentos l ON l.fonte_id=f.id WHERE l.caso_id=?", (caso_id,))
+    wf, pf = util.sql_in("l.caso_id", caso_id)
+    fontes = b.q("SELECT DISTINCT f.nome_original, f.sha256 FROM fontes f JOIN lancamentos l ON l.fonte_id=f.id WHERE " + wf, pf)
     linhas = ["FILTROS: " + " | ".join(pesquisa.descrever_filtros(b, filtros)),
               "ALCANCE: %d registros na seleção (%d enviados abaixo); período %s a %s; %d arquivo(s)." % (
                   regs["total"], len(regs["linhas"]), t["periodo"][0], t["periodo"][1], t["n_fontes"]),

@@ -1,6 +1,6 @@
 """Revisão humana de duplicatas prováveis. Nada é consolidado sem decisão de um revisor."""
 
-from . import auditoria, util
+from . import auditoria, protocolo, util
 
 ESTADOS = {
     "mesma_operacao": "Mesma operação registrada duas vezes (o segundo registro sai dos totais)",
@@ -11,7 +11,9 @@ ESTADOS = {
 
 
 def listar(b, caso_id, estado=None, limite=1000):
-    cond, par = ["d.caso_id=?"], [caso_id]
+    caso_id = protocolo.escopo(b, caso_id)
+    w, par = util.sql_in("d.caso_id", caso_id)
+    cond, par = [w], list(par)
     if estado:
         cond.append("d.estado=?")
         par.append(estado)

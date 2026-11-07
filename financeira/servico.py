@@ -3,7 +3,7 @@
 import base64
 import os
 
-from . import (adaptadores, analise, auditoria, banco, documentos, extrato_pdf, fontes, importacao, leitores, rif, simba, util)
+from . import (adaptadores, analise, auditoria, banco, documentos, extrato_pdf, fontes, importacao, leitores, protocolo, rif, simba, util)
 
 EXT_DOC_ANALISE = (".pdf", ".txt", ".md")
 
@@ -17,14 +17,18 @@ class App:
         self.b = banco.Banco(os.path.join(self.pasta, NOME_BANCO))
 
     # ------------------------------------------------------------ casos
-    def criar_caso(self, nome, descricao, usuario):
+    def criar_caso(self, nome, descricao, usuario, protocolo=None, numero=None, inscricao=None, conjunto=None):
         if not str(nome or "").strip():
             raise ValueError("Informe o nome do caso.")
-        cid = self.b.x("INSERT INTO casos(nome, descricao, criado_em, criado_por) VALUES (?,?,?,?)",
-                       (nome.strip(), descricao, util.agora_iso(), usuario))
+        cid = self.b.x(
+            "INSERT INTO casos(nome, descricao, protocolo, numero, inscricao, conjunto_json, criado_em, criado_por) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (nome.strip(), descricao, protocolo, numero, inscricao,
+             util.json_dump(conjunto) if conjunto else None, util.agora_iso(), usuario))
         if usuario:
             self.b.x("INSERT INTO permissoes(caso_id, usuario, papel) VALUES (?,?, 'administrador')", (cid, usuario))
-        auditoria.registrar(self.b, cid, usuario, "caso_criado", {"nome": nome})
+        auditoria.registrar(self.b, cid, usuario, "caso_criado",
+                            {"nome": nome, "protocolo": protocolo, "numero": numero, "conjunto": conjunto})
         return cid
 
     def casos(self, usuario):
@@ -32,11 +36,61 @@ class App:
         for c in self.b.q("SELECT * FROM casos ORDER BY id DESC"):
             c["papel"] = auditoria.papel(self.b, c["id"], usuario)
             if c["papel"]:
-                c["n_fontes"] = self.b.q1("SELECT COUNT(*) AS n FROM fontes WHERE caso_id=?", (c["id"],))["n"]
-                c["n_lancamentos"] = self.b.q1("SELECT COUNT(*) AS n FROM lancamentos WHERE caso_id=?", (c["id"],))["n"]
+                ids = protocolo.ids_abrangidos(self.b, c["id"])
+                w, par = util.sql_in("caso_id", ids)
+                c["ids_abrangidos"] = ids
+                c["conjunto"] = bool(c.get("conjunto_json"))
+                c["n_fontes"] = self.b.q1("SELECT COUNT(*) AS n FROM fontes WHERE " + w, par)["n"]
+                c["n_lancamentos"] = self.b.q1("SELECT COUNT(*) AS n FROM lancamentos WHERE " + w, par)["n"]
                 c["permissoes"] = self.b.q("SELECT usuario, papel FROM permissoes WHERE caso_id=?", (c["id"],))
                 out.append(c)
         return out
+
+    def reconhecer_arquivo(self, nome, usuario):
+        info = protocolo.ler_nome(nome)
+        existentes, todos = [], []
+        insc = (info.get("inscricao") or "").strip().lower()
+        for c in self.casos(usuario):
+            if c.get("conjunto"):
+                continue
+            item = {"id": c["id"], "nome": c["nome"], "numero": c.get("numero"),
+                    "protocolo": c.get("protocolo"), "inscricao": c.get("inscricao"),
+                    "n_lancamentos": c["n_lancamentos"], "n_fontes": c["n_fontes"]}
+            todos.append(item)
+            mesmo_num = info.get("numero") is not None and c.get("numero") == info["numero"]
+            mesmo_prot = bool(info.get("protocolo") and (c.get("protocolo") or "").upper() == info["protocolo"].upper())
+            if mesmo_num or mesmo_prot:
+                extra = dict(item)
+                extra["mesmo_apelido"] = bool(insc and (c.get("inscricao") or "").strip().lower() == insc)
+                existentes.append(extra)
+        existentes.sort(key=lambda x: (not x.get("mesmo_apelido"), x["id"]))
+        info["existentes"] = existentes
+        info["todos"] = todos
+        return info
+
+    def integrar_casos(self, ids, usuario, nome=None):
+        ids = sorted({int(i) for i in (ids or [])})
+        if len(ids) < 2:
+            raise ValueError("Marque pelo menos dois casos para analisar juntos.")
+        folhas = []
+        for i in ids:
+            auditoria.exigir(self.b, i, usuario, "analista")
+            for f in protocolo.ids_abrangidos(self.b, i):
+                if f not in folhas:
+                    folhas.append(f)
+        if len(folhas) < 2:
+            raise ValueError("Os casos marcados são o mesmo recorte.")
+        folhas = sorted(folhas)
+        chave = util.json_dump(folhas)
+        ja = self.b.q1("SELECT id FROM casos WHERE conjunto_json=?", (chave,))
+        if ja:
+            return ja["id"]
+        nomes = []
+        for i in folhas:
+            c = self.b.q1("SELECT nome, numero FROM casos WHERE id=?", (i,))
+            nomes.append((c["nome"] if c else str(i)))
+        titulo = nome or ("Casos juntos: " + " + ".join(nomes[:4]) + ("…" if len(nomes) > 4 else ""))
+        return self.criar_caso(titulo, "Análise conjunta de %d casos." % len(folhas), usuario, conjunto=folhas)
 
     def criar_remessa(self, caso_id, rotulo, instituicao, observacao, usuario):
         auditoria.exigir(self.b, caso_id, usuario, "analista")
@@ -89,9 +143,12 @@ class App:
         return f
 
     def listar_fontes(self, caso_id):
-        fs = self.b.q("SELECT f.*, r.rotulo AS remessa FROM fontes f LEFT JOIN remessas r ON r.id=f.remessa_id WHERE f.caso_id=? ORDER BY f.id", (caso_id,))
+        ids = protocolo.ids_abrangidos(self.b, caso_id)
+        w, par = util.sql_in("f.caso_id", ids)
+        fs = self.b.q("SELECT f.*, r.rotulo AS remessa FROM fontes f LEFT JOIN remessas r ON r.id=f.remessa_id WHERE " + w + " ORDER BY f.id", par)
+        wp, pp = util.sql_in("caso_id", ids)
         pags = {r["fonte_id"]: r["n"] for r in self.b.q(
-            "SELECT fonte_id, COUNT(*) AS n FROM paginas WHERE caso_id=? GROUP BY fonte_id", (caso_id,))}
+            "SELECT fonte_id, COUNT(*) AS n FROM paginas WHERE " + wp + " GROUP BY fonte_id", pp)}
         for f in fs:
             f["n_paginas"] = pags.get(f["id"], 0)
             f["importacoes"] = self.b.q("SELECT id, adaptador, leiaute, local, criado_em, criado_por, aceitos, pendentes, rejeitados, "
@@ -99,8 +156,10 @@ class App:
         return fs
 
     def conferir_fontes(self, caso_id):
+        ids = protocolo.ids_abrangidos(self.b, caso_id)
+        w, par = util.sql_in("caso_id", ids)
         return [{"id": f["id"], "nome": f["nome_original"], "ok": fontes.conferir_integridade(self.pasta, f)}
-                for f in self.b.q("SELECT * FROM fontes WHERE caso_id=?", (caso_id,))]
+                for f in self.b.q("SELECT * FROM fontes WHERE " + w, par)]
 
     def conteudo_zip(self, fonte_id):
         f = self.fonte(fonte_id)

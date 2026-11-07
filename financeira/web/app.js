@@ -26,7 +26,14 @@ async function api(metodo, url, corpo, opcoes = {}) {
 }
 
 function msg(el, texto, classe = "erro") { (typeof el === "string" ? $(el) : el).innerHTML = `<div class="${classe}">${esc(texto)}</div>`; }
-function exigirCaso() { if (!estado.caso) { alert("Selecione ou crie um caso."); throw new Error("sem caso"); } return estado.caso; }
+function exigirCaso() { if (!estado.caso) { alert("Selecione um caso no Início ou importe um arquivo."); throw new Error("sem caso"); } return estado.caso; }
+function escolherCaso(id) {
+  estado.caso = id ? +id : null;
+  localStorage.setItem("caso", estado.caso || "");
+  estado.filtros = {};
+  const sel = $("#caso");
+  if (sel) sel.value = estado.caso ? String(estado.caso) : "";
+}
 
 async function esperarTarefa(id, el) {
   for (;;) {
@@ -50,8 +57,18 @@ async function baixar(metodo, url, corpo, nomePadrao) {
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
 
-function modal(html) { $("#modal-corpo").innerHTML = html; $("#modal").classList.remove("oculto"); }
-$("#modal-fechar").onclick = () => $("#modal").classList.add("oculto");
+function modal(html, estreito) {
+  const box = $(".modal-conteudo");
+  if (box) box.classList.toggle("estreito", !!estreito);
+  $("#modal-corpo").innerHTML = html;
+  $("#modal").classList.remove("oculto");
+}
+function fecharModal() {
+  $("#modal").classList.add("oculto");
+  const box = $(".modal-conteudo");
+  if (box) box.classList.remove("estreito");
+}
+$("#modal-fechar").onclick = () => fecharModal();
 
 // ------------------------------------------------------------------ abas
 const ABAS_PRINCIPAIS = new Set(["casos", "importar", "pesquisar", "grafo", "ia", "relatorio"]);
@@ -92,16 +109,50 @@ document.addEventListener("click", (e) => {
 // ------------------------------------------------------------------ casos
 $("#usuario").value = localStorage.getItem("usuario") || "";
 $("#usuario").onchange = () => { localStorage.setItem("usuario", usuario()); carregarCasos(); };
-$("#caso").onchange = () => { estado.caso = +$("#caso").value || null; localStorage.setItem("caso", estado.caso || ""); estado.filtros = {}; abrirAba(localStorage.getItem("aba") || "casos"); carregarRemessas(); };
+$("#caso").onchange = () => { escolherCaso(+$("#caso").value || null); abrirAba(localStorage.getItem("aba") || "casos"); carregarRemessas(); };
+
+function htmlCasoCartao(c) {
+  const ativo = c.id === estado.caso ? " ativo" : "";
+  const prot = c.protocolo ? `<span class="caso-selo">${esc(c.protocolo)}</span>` : "";
+  const conj = c.conjunto ? `<span class="caso-selo">vários casos</span>` : "";
+  const num = c.numero != null && !c.conjunto ? `<span class="caso-selo">nº ${esc(c.numero)}</span>` : "";
+  return `<article class="caso-cartao${ativo}" data-id="${c.id}">
+    <input type="checkbox" class="caso-chk" value="${c.id}" title="Marcar para analisar junto">
+    <h3>${esc(c.nome)}</h3>
+    <div class="mini">${prot}${num}${conj}${esc(c.descricao || "")}</div>
+    <p>${c.n_fontes} arquivo(s) · ${c.n_lancamentos} lançamento(s)</p>
+    <button type="button" class="primario" data-abrir-caso="${c.id}">Analisar</button>
+  </article>`;
+}
 
 async function carregarCasos() {
   const casos = await api("GET", "/api/casos");
   const sel = $("#caso");
   const salvo = +localStorage.getItem("caso");
   sel.innerHTML = '<option value="">(selecione)</option>' + casos.map((c) => `<option value="${c.id}">${esc(c.nome)}</option>`).join("");
-  if (casos.some((c) => c.id === salvo)) { sel.value = salvo; estado.caso = salvo; }
-  $("#lista-casos").innerHTML = casos.length ? `<table><tr><th>ID</th><th>Caso</th><th>Criado</th><th>Seu papel</th><th>Fontes</th><th>Lançamentos</th></tr>${
-    casos.map((c) => `<tr><td>${c.id}</td><td>${esc(c.nome)}<div class="mini">${esc(c.descricao || "")}</div></td><td>${esc(c.criado_em)} ${esc(c.criado_por || "")}</td><td>${esc(c.papel)}</td><td>${c.n_fontes}</td><td>${c.n_lancamentos}</td></tr>`).join("")}</table>` : '<p class="nota">Nenhum caso ainda. Crie um acima e importe o extrato.</p>';
+  if (casos.some((c) => c.id === (estado.caso || salvo))) {
+    const id = estado.caso || salvo;
+    sel.value = id;
+    estado.caso = id;
+  }
+  const lista = $("#lista-casos");
+  lista.innerHTML = casos.length ? casos.map(htmlCasoCartao).join("") : '<p class="nota">Nenhum caso ainda. Importe o extrato: o programa reconhece o número SIMBA no nome do arquivo e pergunta se cria o caso.</p>';
+  $$(".caso-cartao", lista).forEach((el) => {
+    const chk = el.querySelector(".caso-chk");
+    if (chk) chk.addEventListener("click", (e) => e.stopPropagation());
+    el.addEventListener("click", (e) => {
+      if (e.target.closest("button") || e.target.closest(".caso-chk")) return;
+      escolherCaso(+el.dataset.id);
+      carregarCasos();
+    });
+  });
+  $$("[data-abrir-caso]", lista).forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      escolherCaso(+b.dataset.abrirCaso);
+      carregarCasos().then(() => abrirAba("pesquisar"));
+    };
+  });
   const atual = casos.find((c) => c.id === estado.caso);
   const resumo = $("#caso-resumo");
   if (resumo) {
@@ -109,13 +160,14 @@ async function carregarCasos() {
       resumo.innerHTML = `<div class="cartao guia"><h3>Comece por aqui</h3>
         <ol class="passos">
           <li>Escreva seu nome no topo (fica neste computador).</li>
-          <li>Crie um caso ou escolha um já existente na lista.</li>
-          <li>Vá em <b>1. Importar</b>, escolha o extrato — os lançamentos aparecem em seguida em <b>2. Movimentações</b>.</li>
+          <li>Vá em <b>1. Importar</b> e escolha o extrato — o programa lê o número SIMBA no arquivo e pergunta se cria um caso novo ou acrescenta a um antigo.</li>
+          <li>Ou clique num caso abaixo, ou marque dois ou mais e <b>Analisar juntos</b>.</li>
           <li>Abra <b>3. Grafo</b> e <b>4. Análise</b>: o programa monta sozinho. Gemini é opcional, com passo a passo na própria aba.</li>
         </ol></div>`;
     } else {
+      const juntos = atual && atual.conjunto ? " Recorte com vários casos." : "";
       resumo.innerHTML = `<div class="cartao ok"><b>Caso selecionado: ${esc(atual ? atual.nome : "")}</b>
-        <p>${atual ? atual.n_fontes : 0} arquivo(s), ${atual ? atual.n_lancamentos : 0} lançamento(s).</p>
+        <p>${atual ? atual.n_fontes : 0} arquivo(s), ${atual ? atual.n_lancamentos : 0} lançamento(s).${juntos}</p>
         <div class="proximos">
           <button type="button" class="primario" data-aba-ir="importar">Importar extrato</button>
           <button type="button" data-aba-ir="pesquisar">Ver movimentações</button>
@@ -130,7 +182,17 @@ async function carregarCasos() {
 $("#btn-criar-caso").onclick = async () => {
   try {
     const r = await api("POST", "/api/casos", { nome: $("#novo-caso-nome").value, descricao: $("#novo-caso-desc").value });
-    localStorage.setItem("caso", r.id); $("#novo-caso-nome").value = ""; await carregarCasos();
+    escolherCaso(r.id); $("#novo-caso-nome").value = ""; await carregarCasos();
+  } catch (e) { alert(e.message); }
+};
+$("#btn-analisar-juntos").onclick = async () => {
+  const ids = $$("#lista-casos .caso-chk:checked").map((c) => +c.value);
+  if (ids.length < 2) return alert("Marque pelo menos dois casos para analisar juntos.");
+  try {
+    const r = await api("POST", "/api/casos/integrar", { ids });
+    escolherCaso(r.id);
+    await carregarCasos();
+    abrirAba("pesquisar");
   } catch (e) { alert(e.message); }
 };
 $("#btn-perm").onclick = async () => {
@@ -174,9 +236,85 @@ function ligarSoltar() {
   ligarZonaArquivo("#imp-soltar", "#imp-arquivo");
   ligarZonaArquivo("#ia-doc-soltar", "#ia-doc-arquivo");
 }
+function htmlOpcaoCaso(c, name, checked) {
+  const selo = c.mesmo_apelido ? " sugestao" : "";
+  const extra = c.protocolo ? ` · ${esc(c.protocolo)}` : "";
+  return `<label class="${selo}"><input type="radio" name="${name}" value="${c.id}" ${checked ? "checked" : ""}>
+    <span><b>${esc(c.nome)}</b><br><span class="mini">${c.n_lancamentos || 0} lançamento(s)${extra}</span></span></label>`;
+}
+
+function perguntarDestinoArquivo(arq) {
+  return new Promise(async (resolve) => {
+    let feito = false;
+    const terminar = (v) => { if (feito) return; feito = true; fecharModal(); resolve(v); };
+    try {
+      if (!usuario()) { alert("Informe seu nome no topo."); return terminar(null); }
+      const rec = await api("POST", "/api/casos/reconhecer", { nome: arq.name });
+      const existentes = rec.existentes || [];
+      const todos = rec.todos || [];
+      const temMatch = existentes.length > 0;
+      const destPadrao = temMatch ? "existente" : "novo";
+      const porId = {};
+      existentes.forEach((c) => { porId[c.id] = c; });
+      const ordenados = todos.slice().sort((a, b) => {
+        const rank = (c) => (porId[c.id] ? (porId[c.id].mesmo_apelido ? 0 : 1) : 2);
+        return rank(a) - rank(b) || a.id - b.id;
+      });
+      const lista = ordenados.map((c, i) => htmlOpcaoCaso(
+        Object.assign({}, c, { mesmo_apelido: !!(porId[c.id] && porId[c.id].mesmo_apelido) }),
+        "imp-caso-id", i === 0
+      )).join("") || '<p class="nota">Ainda não há caso antigo neste computador.</p>';
+      modal(`<h3>Onde guardar este arquivo?</h3>
+        <p>Arquivo: <b>${esc(arq.name)}</b></p>
+        <p>${rec.protocolo ? `Protocolo SIMBA <b>${esc(rec.protocolo)}</b> → ` : ""}${rec.numero != null ? `número <b>${esc(rec.numero)}</b>. ` : ""}Nome sugerido: <b>${esc(rec.nome_sugerido)}</b>${rec.inscricao ? ` (inscrição: ${esc(rec.inscricao)})` : rec.numero != null ? " (sem apelido no arquivo — extrato detalhado, RIF ou ofício ficam só como Caso " + esc(rec.numero) + ")" : ""}.</p>
+        <div class="imp-dest">
+          <label class="opcao${destPadrao === "novo" ? " marca" : ""}"><input type="radio" name="imp-dest" value="novo" ${destPadrao === "novo" ? "checked" : ""}>
+            <span>Criar caso novo<br><input id="imp-caso-nome" value="${esc(rec.nome_sugerido)}" size="36"></span></label>
+          <label class="opcao${destPadrao === "existente" ? " marca" : ""}"><input type="radio" name="imp-dest" value="existente" ${destPadrao === "existente" ? "checked" : ""} ${todos.length ? "" : "disabled"}>
+            <span>Adicionar a um caso já existente${temMatch ? " (mesmo número SIMBA)" : ""}</span></label>
+        </div>
+        <div id="imp-lista-casos" class="lista-casos-imp" style="${destPadrao === "existente" ? "" : "display:none"}">${lista}</div>
+        <button type="button" class="primario" id="imp-confirmar">Continuar</button>
+        <button type="button" id="imp-cancelar">Cancelar</button>`, true);
+      const pintar = () => {
+        $$(".imp-dest .opcao").forEach((el) => el.classList.toggle("marca", el.querySelector("input[name=imp-dest]").checked));
+        const dest = ($("input[name=imp-dest]:checked") || {}).value;
+        $("#imp-lista-casos").style.display = dest === "existente" ? "" : "none";
+      };
+      $$("input[name=imp-dest]").forEach((r) => { r.onchange = pintar; });
+      $("#imp-cancelar").onclick = () => terminar(null);
+      $("#modal-fechar").addEventListener("click", () => terminar(null), { once: true });
+      $("#imp-confirmar").onclick = async () => {
+        try {
+          const dest = ($("input[name=imp-dest]:checked") || {}).value || "novo";
+          if (dest === "existente") {
+            const escolhido = $("input[name=imp-caso-id]:checked");
+            if (!escolhido) return alert("Escolha o caso antigo.");
+            terminar(+escolhido.value);
+            return;
+          }
+          const nome = ($("#imp-caso-nome") && $("#imp-caso-nome").value.trim()) || rec.nome_sugerido;
+          const r = await api("POST", "/api/casos", {
+            nome, descricao: rec.inscricao ? rec.inscricao : "",
+            protocolo: rec.protocolo, numero: rec.numero, inscricao: rec.inscricao
+          });
+          terminar(r.id);
+        } catch (e) { alert(e.message); }
+      };
+    } catch (e) {
+      alert(e.message);
+      terminar(null);
+    }
+  });
+}
+
 $("#btn-enviar").onclick = async () => {
   const arq = $("#imp-arquivo").files[0];
   if (!arq) return alert("Escolha um arquivo.");
+  const casoId = await perguntarDestinoArquivo(arq);
+  if (!casoId) return;
+  escolherCaso(casoId);
+  await carregarCasos();
   $("#imp-relatorio").innerHTML = "";
   $("#imp-progresso").innerHTML = '<span class="nota">Enviando e calculando SHA-256...</span>';
   try {

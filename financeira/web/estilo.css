@@ -191,6 +191,50 @@ tr.consolidado td { text-decoration: line-through; color: #888; }
 .modal { position: fixed; inset: 0; background: rgba(11, 26, 48, .45); z-index: 50; display: flex; align-items: flex-start; justify-content: center; overflow: auto; }
 .modal.oculto { display: none; }
 .modal-conteudo { background: #fff; margin: 30px; padding: 18px; border-radius: 14px; max-width: 1100px; width: 100%; position: relative; box-shadow: var(--sombra); }
+.modal-conteudo.estreito { max-width: 640px; }
+.estante-casos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 12px 0 20px;
+}
+.caso-cartao {
+  background: #fff;
+  border: 1px solid var(--borda);
+  border-radius: 14px;
+  padding: 14px 14px 12px;
+  box-shadow: var(--sombra);
+  cursor: pointer;
+  position: relative;
+}
+.caso-cartao:hover { border-color: var(--ouro); }
+.caso-cartao.ativo {
+  border-color: var(--navy);
+  box-shadow: 0 0 0 2px var(--ouro), var(--sombra);
+}
+.caso-cartao h3 { margin: 0 32px 6px 0; font-size: 15px; color: var(--navy); }
+.caso-cartao .caso-chk { position: absolute; top: 12px; right: 12px; width: 18px; height: 18px; }
+.caso-selo {
+  display: inline-block;
+  font-size: 11px;
+  background: #eef3fb;
+  color: var(--navy3);
+  border-radius: 999px;
+  padding: 2px 8px;
+  margin: 0 4px 4px 0;
+}
+.imp-dest { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.imp-dest label.opcao {
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: 10px 12px; border: 1px solid var(--borda); border-radius: 10px; cursor: pointer;
+}
+.imp-dest label.opcao.marca { border-color: var(--ouro); background: #fffaf0; }
+.lista-casos-imp { max-height: 220px; overflow: auto; margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.lista-casos-imp label {
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: 8px 10px; border: 1px solid var(--borda); border-radius: 8px; cursor: pointer;
+}
+.lista-casos-imp label.sugestao { border-color: var(--ouro); background: #fffaf0; }
 .fechar { position: absolute; right: 10px; top: 8px; font-size: 18px; }
 pre { white-space: pre-wrap; background: #f4f7fb; padding: 10px 12px; border-radius: 8px; font-size: 13px; max-height: 400px; overflow: auto; }
 canvas#ev-canvas { border: 1px solid var(--borda); background: #fff; max-width: 100%; cursor: crosshair; border-radius: 8px; }

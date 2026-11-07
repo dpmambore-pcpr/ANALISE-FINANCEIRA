@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 3.4.5
+- **Casos pelo nome do arquivo SIMBA:** `056-PCPR-000677-20` vira **Caso 677**. Palavras genéricas (extrato detalhado, RIF, ofício) não entram no nome; um apelido (elon musk, casa mambore, gordo) vira **Caso 677 elon musk**.
+- Ao importar, o programa pergunta se cria um caso novo ou acrescenta a um caso já existente.
+- No Início, clique no caso para analisar; marque dois ou mais e use **Analisar juntos** (movimentações, grafo e análise no mesmo recorte).
+
 ## 3.4.4
 - **Grafo (estilo Mercure / i2):** setas menores; arraste pessoas e contas; puxe o ponto no meio da ligação para curvar a seta. O fundo continua movendo o mapa.
 

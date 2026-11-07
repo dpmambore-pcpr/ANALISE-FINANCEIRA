@@ -340,3 +340,17 @@ def norm_doc(texto):
     if len(d) in (11, 14) and not any(ch in str(texto) for ch in "*xX#"):
         return d
     return str(texto).strip()
+
+
+def ids_caso(caso_id):
+    if isinstance(caso_id, (list, tuple)):
+        out = [int(x) for x in caso_id if x is not None]
+        return out or [0]
+    return [int(caso_id)]
+
+
+def sql_in(campo, caso_id):
+    ids = ids_caso(caso_id)
+    if len(ids) == 1:
+        return "%s=?" % campo, ids
+    return "%s IN (%s)" % (campo, ",".join("?" * len(ids))), ids

@@ -231,7 +231,23 @@ def r_criar_caso(h, q):
     d = h.json_corpo()
     if not h.usuario:
         raise ValueError("Informe seu nome de usuário no topo da tela.")
-    h.enviar(200, {"id": h.app.criar_caso(d.get("nome"), d.get("descricao"), h.usuario)})
+    h.enviar(200, {"id": h.app.criar_caso(
+        d.get("nome"), d.get("descricao"), h.usuario,
+        protocolo=d.get("protocolo"), numero=d.get("numero"), inscricao=d.get("inscricao"))})
+
+
+@rota("POST", r"/api/casos/reconhecer")
+def r_reconhecer(h, q):
+    d = h.json_corpo()
+    h.enviar(200, h.app.reconhecer_arquivo(d.get("nome") or "", h.usuario))
+
+
+@rota("POST", r"/api/casos/integrar")
+def r_integrar(h, q):
+    d = h.json_corpo()
+    if not h.usuario:
+        raise ValueError("Informe seu nome de usuário no topo da tela.")
+    h.enviar(200, {"id": h.app.integrar_casos(d.get("ids") or [], h.usuario, d.get("nome"))})
 
 
 @rota("POST", r"/api/casos/(\d+)/permissoes")

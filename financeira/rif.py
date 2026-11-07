@@ -8,7 +8,7 @@ identificadores aparecem na Pesquisa geral marcados como "RIF".
 import os
 import zipfile
 
-from . import adaptadores, auditoria, util
+from . import adaptadores, auditoria, protocolo, util
 
 RESTRICAO_PADRAO = ("RIF: documento de inteligência financeira com sigilo. Não é prova de movimentação nem de "
                     "ilicitude; não pode ser somado a extratos. Uso restrito à investigação autorizada.")
@@ -159,7 +159,9 @@ def adicionar_citacao(b, caso_id, rif_id, fonte_id, pagina, trecho, id_comunicac
 
 
 def resumo(b, caso_id):
-    rifs = b.q("SELECT r.*, f.nome_original, f.sha256 FROM rif_relatorios r JOIN fontes f ON f.id=r.fonte_id WHERE r.caso_id=?", (caso_id,))
+    ids = protocolo.escopo(b, caso_id)
+    w, par = util.sql_in("r.caso_id", ids)
+    rifs = b.q("SELECT r.*, f.nome_original, f.sha256 FROM rif_relatorios r JOIN fontes f ON f.id=r.fonte_id WHERE " + w, par)
     for r in rifs:
         r["comunicacoes"] = b.q("SELECT * FROM rif_comunicacoes WHERE rif_id=? ORDER BY id LIMIT 2000", (r["id"],))
         r["envolvidos"] = b.q("SELECT * FROM rif_envolvidos WHERE rif_id=? ORDER BY id LIMIT 5000", (r["id"],))
@@ -170,8 +172,9 @@ def resumo(b, caso_id):
         for d in sorted(docs):
             if not d:
                 continue
-            n = b.q1("SELECT COUNT(*) AS n FROM ocorrencias_ident WHERE caso_id=? AND tipo IN ('cpf','cnpj') AND valor_norm=? "
-                     "AND tabela IN ('lancamentos','partes')", (caso_id, d))["n"]
+            wo, po = util.sql_in("caso_id", ids)
+            n = b.q1("SELECT COUNT(*) AS n FROM ocorrencias_ident WHERE " + wo + " AND tipo IN ('cpf','cnpj') AND valor_norm=? "
+                     "AND tabela IN ('lancamentos','partes')", list(po) + [d])["n"]
             if n:
                 r["envolvidos_com_movimentacao"].append({"doc": d, "ocorrencias_em_extratos": n})
         r["restricao"] = r["restricao"] or RESTRICAO_PADRAO

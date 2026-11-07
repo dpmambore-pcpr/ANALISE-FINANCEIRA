@@ -2,9 +2,9 @@
 
 ## Fluxo recomendado
 
-1. **Início** → informe seu nome no topo, crie o caso (e, se necessário, os papéis da equipe: leitor, analista, revisor, administrador).
+1. **Início** → informe seu nome no topo. Clique no cartão do caso que quer analisar, ou marque dois ou mais e **Analisar casos marcados juntos**. (Papéis da equipe, se necessário: leitor, analista, revisor, administrador.)
 2. **Remessas** (em Início, opcional) → uma remessa por resposta de banco (ex.: "Banco X — ofício 12/2026"). Assim as chaves internas de cada banco nunca se misturam.
-3. **1. Importar** → escolha ou arraste o arquivo. O original é guardado sem alteração em `dados/casos/caso_N/originais/` com SHA-256. Arquivo idêntico ao já recebido é recusado. Se for extrato, os lançamentos **já aparecem** em **2. Movimentações**.
+3. **1. Importar** → escolha ou arraste o arquivo. O programa lê o nome: `056-PCPR-000677-20` vira **Caso 677**; se o arquivo for “extrato detalhado” (ou RIF/ofício), o apelido não entra; se o nome tiver inscrição (elon musk, casa mambore, gordo), vira **Caso 677 elon musk**. Na hora de enviar, escolha criar caso novo ou acrescentar a um caso antigo. O original é guardado sem alteração em `dados/casos/caso_N/originais/` com SHA-256. Arquivo idêntico ao já recebido no mesmo caso é recusado. Se for extrato, os lançamentos **já aparecem** em **2. Movimentações**.
 4. Na prévia, escolha o **tipo de dado**:
    - *Extrato / movimentação* — gera lançamentos e entra nos totais;
    - *Registros de acesso, IP e geolocalização* — nunca vira transação;

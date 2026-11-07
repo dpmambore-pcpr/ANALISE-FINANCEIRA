@@ -18,7 +18,7 @@ def _ler(nome):
 
 class TestInterfaceArquivos(unittest.TestCase):
     def test_versao(self):
-        self.assertEqual(VERSAO, "3.4.4")
+        self.assertEqual(VERSAO, "3.4.5")
 
     def test_html_fluxo_simples(self):
         html = _ler("index.html")
@@ -28,6 +28,9 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn("4. Análise", html)
         self.assertIn('id="nav-mais"', html)
         self.assertIn("Clique para escolher o arquivo", html)
+        self.assertIn("btn-analisar-juntos", html)
+        self.assertIn("estante-casos", html)
+        self.assertIn("056-PCPR-000677-20", html)
         self.assertIn("aistudio.google.com/apikey", html)
         self.assertIn("Salvar e testar", html)
         self.assertIn("Peça a chave à TI da unidade", html)
@@ -58,6 +61,11 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn("verificarAtualizacao(false)", js)
         self.assertIn("enviarDocsAnalise", js)
         self.assertIn("/api/casos/${exigirCaso()}/docs-analise", js)
+        self.assertIn("perguntarDestinoArquivo", js)
+        self.assertIn("/api/casos/reconhecer", js)
+        self.assertIn("/api/casos/integrar", js)
+        self.assertIn("escolherCaso", js)
+        self.assertIn(".estante-casos", _ler("estilo.css"))
         self.assertNotIn("atu-auto", js)
         self.assertNotIn('id="atu-auto"', _ler("index.html"))
 

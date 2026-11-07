@@ -36,8 +36,8 @@ Por padrão o programa **não envia dados de caso à internet**. O atualizador c
 
 | Aba | Para quê |
 |---|---|
-| Início | Cria ou escolhe o caso. Quatro passos na tela. |
-| 1. Importar | Envia CSV/TXT, XLSX, ZIP, PDF (arquivo ou arrastar). Guarda o original com SHA-256; se for extrato, **os lançamentos já aparecem** em Movimentações. |
+| Início | Clique no caso, ou marque vários e **Analisar juntos**. |
+| 1. Importar | Envia CSV/TXT, XLSX, ZIP, PDF (arquivo ou arrastar). Lê o número SIMBA no nome (`056-PCPR-000677-20` → Caso 677; com apelido → Caso 677 elon musk) e pergunta se cria caso novo ou acrescenta a um antigo. Guarda o original com SHA-256; se for extrato, **os lançamentos já aparecem** em Movimentações. |
 | 2. Movimentações | Lista e totais com **filtros de múltipla escolha**: CPF/CNPJ, nomes, contas, bancos, PIX, tipo, descrição, mês, data, IP, cidade, status, arquivo e remessa. |
 | Pesquisa geral | Lista **tudo** o que foi encontrado em todos os documentos (extratos, cadastros, acessos, RIF, texto de PDF): CPF, CNPJ, nomes, bancos, contas, PIX, ID PIX, e-mails, telefones, IPs, coordenadas, cidades, dispositivos e datas. Marque valores e veja onde cada um aparece (arquivo, página/linha). |
 | IP / Geolocalização | Registros de acesso de qualquer banco: IP, porta, data/hora com fuso original, latitude/longitude, cidade, dispositivo; gráfico de dispersão das coordenadas sem mapa da internet. |
