@@ -25,7 +25,7 @@ def _cp_key(p):
     return "anon:(não identificado)", "nenhuma"
 
 
-def grafo(b, caso_id, filtros, max_nos=60):
+def grafo(b, caso_id, filtros, max_nos=80, min_volume=0):
     w, par = pesquisa._where(caso_id, filtros)
     contas = {}
     for r in b.q("SELECT DISTINCT l.banco, l.agencia, l.conta, l.titular_nome, l.titular_doc_norm FROM lancamentos l WHERE " + w, par):
@@ -90,12 +90,21 @@ def grafo(b, caso_id, filtros, max_nos=60):
                 ligacoes.append({"de": k, "para": ck, "tipo": "mesmo CPF/CNPJ do titular", "hipotese": False})
             elif k.startswith("nome:") and any(util.normalizar_nome(t) == k[5:] for t in c["titulares"]):
                 ligacoes.append({"de": k, "para": ck, "tipo": "HIPÓTESE: mesmo nome do titular (sem documento)", "hipotese": True})
+    min_volume = int(min_volume or 0)
+    if min_volume:
+        agreg = {k: a for k, a in agreg.items() if (a["valor"] or 0) >= min_volume}
+        usados = set()
+        for a in agreg.values():
+            usados.add(a["de"])
+            usados.add(a["para"])
+        nos = {k: n for k, n in nos.items() if k in usados or n["tipo"] == "conta"}
+    max_nos = max(5, min(int(max_nos or 80), 300))
     escolhidos = sorted(nos.values(), key=lambda n: (n["tipo"] != "conta", -n["volume"]))[:max_nos]
     ids = set(n["id"] for n in escolhidos)
     out_arestas = [dict(a, valor_fmt=util.formatar_centavos(a["valor"])) for a in agreg.values() if a["de"] in ids and a["para"] in ids]
     return {"nos": escolhidos, "arestas": out_arestas, "ligacoes": [l for l in ligacoes if l["de"] in ids and l["para"] in ids],
             "omitidos": max(0, len(nos) - len(escolhidos)), "aviso": AVISO,
-            "filtros": pesquisa.descrever_filtros(b, filtros)}
+            "filtros": pesquisa.descrever_filtros(b, filtros), "max_nos": max_nos, "min_volume": min_volume}
 
 
 def _d(s):

@@ -1,6 +1,7 @@
 # NUNCA versionar dados de casos: o repositório é público.
 dados/
 dados_*/
+**/gemini.json
 *.sqlite
 *.sqlite3
 *.db

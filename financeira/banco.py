@@ -4,7 +4,7 @@ import os
 import sqlite3
 import threading
 
-ESQUEMA_VERSAO = 1
+ESQUEMA_VERSAO = 2
 
 ESQUEMA = r"""
 CREATE TABLE IF NOT EXISTS meta (chave TEXT PRIMARY KEY, valor TEXT);
@@ -177,6 +177,27 @@ CREATE TABLE IF NOT EXISTS ia_correcoes (
   id INTEGER PRIMARY KEY, caso_id INTEGER, pergunta TEXT NOT NULL, resposta_revisada TEXT NOT NULL,
   observacao TEXT, criado_por TEXT, criado_em TEXT, ativo INTEGER DEFAULT 1
 );
+
+CREATE TABLE IF NOT EXISTS caso_contexto (
+  caso_id INTEGER PRIMARY KEY REFERENCES casos(id),
+  hipotese_crime TEXT,
+  vitimas_json TEXT,
+  investigados_json TEXT,
+  analise_json TEXT,
+  analise_em TEXT,
+  analise_por TEXT,
+  atualizado_em TEXT,
+  atualizado_por TEXT
+);
+
+CREATE TABLE IF NOT EXISTS ia_conversas (
+  id INTEGER PRIMARY KEY, caso_id INTEGER NOT NULL REFERENCES casos(id),
+  titulo TEXT, criado_em TEXT, criado_por TEXT
+);
+CREATE TABLE IF NOT EXISTS ia_mensagens (
+  id INTEGER PRIMARY KEY, conversa_id INTEGER NOT NULL REFERENCES ia_conversas(id),
+  papel TEXT NOT NULL, texto TEXT NOT NULL, alcance_json TEXT, modelo TEXT, em TEXT
+);
 """
 
 _FTS = """
@@ -209,6 +230,9 @@ class Banco:
                 self.fts = True
             except sqlite3.OperationalError:
                 self.fts = False
+            cols = [r["name"] for r in self.con.execute("PRAGMA table_info(fontes)").fetchall()]
+            if "papel" not in cols:
+                self.con.execute("ALTER TABLE fontes ADD COLUMN papel TEXT")
             self.con.execute(
                 "INSERT OR REPLACE INTO meta(chave, valor) VALUES ('esquema_versao', ?)", (str(ESQUEMA_VERSAO),))
 

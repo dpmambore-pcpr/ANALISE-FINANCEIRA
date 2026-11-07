@@ -15,8 +15,8 @@ import webbrowser
 from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import (VERSAO, adaptadores, auditoria, conciliacao, conhecimento, documentos, fontes, grafo, ia, pesquisa,
-               relatorio, rif, servico, util)
+from . import (VERSAO, adaptadores, analise, auditoria, conciliacao, conhecimento, documentos, fontes, gemini, grafo, ia,
+               pesquisa, relatorio, rif, servico, util)
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
@@ -195,8 +195,11 @@ class Manipulador(BaseHTTPRequestHandler):
 
 @rota("GET", r"/api/estado")
 def r_estado(h, q):
+    g = gemini.status(h.app.pasta)
     h.enviar(200, {"versao": VERSAO, "ocr": documentos.ocr_disponivel(), "ia_endereco": ia.url_base(),
-                   "pasta_dados": h.app.pasta, "fts": h.app.b.fts})
+                   "pasta_dados": h.app.pasta, "fts": h.app.b.fts,
+                   "gemini": {"configurado": g["configurado"], "confirmado": g["confirmado"],
+                              "chave_mascarada": g.get("chave_mascarada") or ""}})
 
 
 @rota("GET", r"/api/casos")
@@ -395,7 +398,9 @@ def r_acessos(h, q, c):
 
 @rota("POST", r"/api/casos/(\d+)/grafo")
 def r_grafo(h, q, c):
-    h.enviar(200, grafo.grafo(h.app.b, h.ler_caso(c), h.json_corpo().get("filtros")))
+    d = h.json_corpo()
+    h.enviar(200, grafo.grafo(h.app.b, h.ler_caso(c), d.get("filtros"), d.get("max_nos") or 80,
+                              d.get("min_volume") or 0))
 
 
 @rota("POST", r"/api/casos/(\d+)/sequencias")
@@ -507,7 +512,8 @@ def r_relatorio(h, q, c):
     caso = h.ler_caso(c)
     d = h.json_corpo()
     corpo, tipo, nome = relatorio.gerar(h.app.b, caso, d.get("formato") or "html", d.get("filtros"), d.get("observacoes"),
-                                        d.get("evidencias"), h.usuario, h.app.pasta)
+                                        d.get("evidencias"), h.usuario, h.app.pasta,
+                                        incluir_analise=bool(d.get("incluir_analise")))
     auditoria.registrar(h.app.b, caso, h.usuario, "relatorio_gerado", {"formato": d.get("formato"), "filtros": d.get("filtros"),
                                                                        "sha256": util.sha256_bytes(corpo)})
     h.enviar(200, corpo, tipo, {"Content-Disposition": 'attachment; filename="caso_%d_%s"' % (caso, nome)})
@@ -572,15 +578,85 @@ def r_atu_aplicar(h, q):
 
 @rota("GET", r"/api/ia/modelos")
 def r_modelos(h, q):
-    h.enviar(200, ia.modelos())
+    h.enviar(200, ia.modelos(pasta=h.app.pasta))
+
+
+@rota("GET", r"/api/ia/gemini")
+def r_gemini_get(h, q):
+    h.enviar(200, gemini.status(h.app.pasta))
+
+
+@rota("POST", r"/api/ia/gemini")
+def r_gemini_post(h, q):
+    d = h.json_corpo()
+    h.enviar(200, gemini.salvar(
+        h.app.pasta, h.usuario, chave=d.get("chave"), modelo=d.get("modelo"),
+        endpoint=d.get("endpoint"), confirmado=d.get("confirmado"),
+        remover=bool(d.get("remover"))))
+
+
+@rota("POST", r"/api/ia/gemini/teste")
+def r_gemini_teste(h, q):
+    h.enviar(200, gemini.testar(h.app.pasta))
+
+
+@rota("GET", r"/api/casos/(\d+)/contexto")
+def r_contexto_get(h, q, c):
+    h.enviar(200, analise.contexto(h.app.b, h.ler_caso(c)))
+
+
+@rota("POST", r"/api/casos/(\d+)/contexto")
+def r_contexto_post(h, q, c):
+    caso = h.ler_caso(c)
+    d = h.json_corpo()
+    h.enviar(200, analise.salvar_contexto(h.app.b, caso, h.usuario, d.get("hipotese_crime"),
+                                          d.get("vitimas"), d.get("investigados")))
+
+
+@rota("POST", r"/api/casos/(\d+)/analise")
+def r_analise(h, q, c):
+    caso = h.ler_caso(c)
+    d = h.json_corpo()
+    tid = h.server.tarefas.iniciar(analise.analisar, h.app.b, caso, h.usuario, d.get("filtros"),
+                                   d.get("hipotese_crime"), d.get("vitimas"), d.get("investigados"),
+                                   int(d.get("janela_vitima_dias") or 7))
+    h.enviar(200, {"tarefa": tid})
+
+
+@rota("GET", r"/api/casos/(\d+)/analise")
+def r_analise_get(h, q, c):
+    h.enviar(200, analise.contexto(h.app.b, h.ler_caso(c)))
+
+
+@rota("POST", r"/api/fontes/(\d+)/papel")
+def r_fonte_papel(h, q, f):
+    fonte = h.app.fonte(int(f))
+    h.ler_caso(fonte["caso_id"])
+    d = h.json_corpo()
+    h.enviar(200, analise.definir_papel_fonte(h.app.b, fonte["id"], d.get("papel"), h.usuario))
+
+
+@rota("GET", r"/api/casos/(\d+)/ia/conversas")
+def r_conversas(h, q, c):
+    h.enviar(200, ia.listar_conversas(h.app.b, h.ler_caso(c)))
+
+
+@rota("GET", r"/api/casos/(\d+)/ia/conversas/(\d+)")
+def r_conversa(h, q, c, i):
+    caso = h.ler_caso(c)
+    h.enviar(200, {"id": int(i), "mensagens": ia.historico_conversa(h.app.b, caso, int(i), 200)})
 
 
 @rota("POST", r"/api/casos/(\d+)/ia")
 def r_ia(h, q, c):
     caso = h.ler_caso(c)
     d = h.json_corpo()
-    tid = h.server.tarefas.iniciar(ia.perguntar, h.app.b, caso, h.usuario, d.get("modelo"), d.get("pergunta") or "",
-                                   d.get("filtros"), d.get("fonte_id") or None, bool(d.get("usar_conhecimento", True)))
+    tid = h.server.tarefas.iniciar(
+        ia.conversar, h.app.b, caso, h.usuario, d.get("pergunta") or "",
+        modelo=d.get("modelo") or None, filtros=d.get("filtros"), fonte_id=d.get("fonte_id") or None,
+        usar_conhecimento=bool(d.get("usar_conhecimento", True)), conversa_id=d.get("conversa_id") or None,
+        hipotese_crime=d.get("hipotese_crime"), vitimas=d.get("vitimas"), investigados=d.get("investigados"),
+        gerar_analise=bool(d.get("gerar_analise", True)), pasta=h.app.pasta)
     h.enviar(200, {"tarefa": tid})
 
 

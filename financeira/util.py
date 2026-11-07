@@ -32,6 +32,12 @@ def json_dump(obj):
     return json.dumps(obj, ensure_ascii=False, sort_keys=True, default=str)
 
 
+def json_load(texto):
+    if not texto:
+        return None
+    return json.loads(texto)
+
+
 def so_digitos(texto):
     return "".join(ch for ch in str(texto or "") if ch.isdigit())
 

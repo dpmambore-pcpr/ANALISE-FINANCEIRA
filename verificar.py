@@ -23,12 +23,20 @@ def main():
         print("Busca de texto (FTS5): indisponível - a base de conhecimento usa busca simples")
     o = documentos.ocr_disponivel()
     print("OCR local: %s" % ("disponível (%s)" % ", ".join(o["idiomas"]) if o["disponivel"] else "não instalado (opcional)"))
-    try:
-        m = ia.modelos()
+    pasta = os.path.join(RAIZ, "dados")
+    m = ia.modelos(pasta=pasta if os.path.isdir(pasta) else None)
+    if m.get("disponivel") is False:
+        print("Ollama local: não encontrado (opcional) - %s" % m.get("erro"))
+    else:
         print("Ollama local: %s, modelos: %s%s" % (m["versao"], ", ".join(m["modelos"]) or "nenhum",
                                                   "; bloqueados (nuvem): " + ", ".join(m["bloqueados_nuvem"]) if m["bloqueados_nuvem"] else ""))
-    except ia.ErroIA as e:
-        print("Ollama local: não encontrado (opcional) - %s" % e)
+    g = m.get("gemini") or {}
+    if g.get("configurado"):
+        print("Gemini (parceria): configurado (%s), envio %s" % (
+            g.get("chave_mascarada") or g.get("origem") or "sim",
+            "autorizado" if g.get("confirmado") else "não autorizado"))
+    else:
+        print("Gemini (parceria): desligado (opcional)")
     print("\nTestes automatizados (dados fictícios):")
     suite = unittest.defaultTestLoader.discover(os.path.join(RAIZ, "testes"), pattern="test_*.py", top_level_dir=os.path.join(RAIZ, "testes"))
     r = unittest.TextTestRunner(verbosity=1).run(suite)
