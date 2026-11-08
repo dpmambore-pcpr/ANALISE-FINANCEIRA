@@ -605,7 +605,7 @@ function htmlRelatorioImportacao(rel) {
     ${rel.rif_envolvidos ? `<div>Envolvidos RIF<b>${rel.rif_envolvidos}</b></div>` : ""}
     ${rel.rif_ocorrencias ? `<div>Ocorrências RIF<b>${rel.rif_ocorrencias}</b></div>` : ""}</div>`;
   const pc = rel.parcelas || {};
-  if (pc.conferidas || pc.divergentes || pc.incompletas) h += `<p class="nota">Parcelas de origem/destino: ${pc.conferidas || 0} conferidas, ${pc.divergentes || 0} divergentes, ${pc.incompletas || 0} sem valor por parcela, ${pc.unica || 0} contraparte única.</p>`;
+  if (pc.conferidas || pc.divergentes || pc.incompletas) h += `<p class="nota">Parcelas de origem/destino: ${pc.conferidas || 0} conferidas, ${pc.divergentes || 0} divergentes, ${pc.incompletas || 0} sem valor por parcela, ${pc.unica || 0} com um só remetente ou recebedor.</p>`;
   if (rel.controle) h += `<div class="${rel.controle.ok ? "ok" : "erro"}"><b>Valores de controle: ${rel.controle.ok ? "CONFEREM" : "DIVERGEM"}</b>${rel.controle.itens.map((i) => `<br>${esc(i.item)}: esperado ${esc(i.esperado)}, obtido ${esc(i.obtido)} ${i.ok ? "✓" : "✗"}`).join("")}</div>`;
   (rel.avisos || []).forEach((a) => (h += `<div class="aviso">${esc(a)}</div>`));
   const motivos = Object.entries(rel.motivos || {});
@@ -773,16 +773,16 @@ async function pesquisar(deslocamento = 0) {
     <div>Pendentes (fora dos totais)<b>${t.pendentes_fmt}</b>${t.n_pendentes} registros</div><div>Rejeitados<b>${t.n_rejeitados}</b></div>
     <div>Período<b style="font-size:14px">${esc(t.periodo[0] || "-")} a ${esc(t.periodo[1] || "-")}</b>${t.n_fontes} arquivo(s)</div></div>`;
   t.avisos.forEach((a) => (h += `<div class="aviso">${esc(a)}</div>`));
-  const rk = (titulo, x) => `<div><h3>${titulo}</h3><table><tr><th>Contraparte</th><th>CPF/CNPJ</th><th>Lanç.</th><th>Valor</th></tr>${x.itens.map((i) => `<tr><td>${esc(i.nome || "?")}</td><td>${esc(i.doc || "")}</td><td>${i.n}</td><td class="num">${i.soma_fmt}</td></tr>`).join("")}
-    <tr><td colspan="3" class="mini">Não distribuído (parcelas divergentes/incompletas)</td><td class="num">${x.nao_distribuido.soma_fmt}</td></tr><tr><td colspan="3" class="mini">Sem contraparte identificada</td><td class="num">${x.sem_contraparte.soma_fmt}</td></tr></table></div>`;
-  h += `<div class="duas">${rk("Principais origens (créditos)", t.origens)}${rk("Principais destinos (débitos)", t.destinos)}</div>`;
+  const rk = (titulo, x, col) => `<div><h3>${titulo}</h3><table><tr><th>${esc(col)}</th><th>CPF/CNPJ</th><th>Lanç.</th><th>Valor</th></tr>${x.itens.map((i) => `<tr><td>${esc(i.nome || "?")}</td><td>${esc(i.doc || "")}</td><td>${i.n}</td><td class="num">${i.soma_fmt}</td></tr>`).join("")}
+    <tr><td colspan="3" class="mini">Não distribuído (parcelas divergentes/incompletas)</td><td class="num">${x.nao_distribuido.soma_fmt}</td></tr><tr><td colspan="3" class="mini">Sem quem enviou ou recebeu</td><td class="num">${x.sem_contraparte.soma_fmt}</td></tr></table></div>`;
+  h += `<div class="duas">${rk("Principais origens — quem enviou (créditos)", t.origens, "Quem enviou")}${rk("Principais destinos — quem recebeu (débitos)", t.destinos, "Quem recebeu (recebedor)")}</div>`;
   if (t.por_conta.length > 1) h += `<details><summary>Totais por conta (${t.por_conta.length})</summary><table><tr><th>Conta</th><th>Titular</th><th>Créditos</th><th>Débitos</th><th>Registros</th></tr>${t.por_conta.map((c) => `<tr><td>${esc(c.conta)}</td><td>${esc(c.titular || "")}</td><td class="num">${c.c_fmt}</td><td class="num">${c.d_fmt}</td><td>${c.n}</td></tr>`).join("")}</table></details>`;
   $("#totais").innerHTML = h;
   let tab = `<p class="nota">${r.total} registro(s); mostrando ${r.deslocamento + 1}-${r.deslocamento + r.linhas.length}. ${r.total > r.deslocamento + r.linhas.length ? '<button id="btn-mais">Próximos 500</button>' : ""} ${r.deslocamento ? '<button id="btn-menos">Anteriores</button>' : ""}</p>
-    <table><tr><th>Data</th><th>Nat.</th><th>Valor</th><th>Titular / conta</th><th>Descrição</th><th>Origem/destino</th><th>Fonte / linha</th><th>Situação</th><th></th></tr>`;
-  tab += r.linhas.map((l) => `<tr class="${l.situacao}"><td>${esc(l.data || "")} ${esc(l.hora || "")}${l.fuso ? `<div class="mini">${esc(l.fuso)}</div>` : ""}</td><td>${esc(l.natureza || "?")}</td><td class="num">${l.valor_fmt}</td>
-    <td>${esc(l.titular_nome || "")}<div class="mini">${esc(l.banco || "")} ${esc(l.agencia || "")} ${esc(l.conta || "")}</div></td><td>${esc(l.descricao || "")}<div class="mini">${esc(l.tipo_operacao || "")} ${esc(l.status_origem || "")}</div></td>
-    <td>${l.partes.map((p) => `<div>${esc(p.papel)}: ${esc(p.nome || "?")} <span class="mini">${esc(p.doc || "")}${p.valor_centavos != null ? " · " + (p.valor_centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : ""}</span></div>`).join("")}${l.parcelas_estado === "divergentes" || l.parcelas_estado === "incompletas" ? `<div class="mini" style="color:#a60">parcelas ${l.parcelas_estado}</div>` : ""}</td>
+    <table><tr><th>Data</th><th>Entrou/saiu</th><th>Valor</th><th>Titular / conta</th><th>Descrição</th><th>Quem enviou ou recebeu</th><th>Fonte / linha</th><th>Situação</th><th></th></tr>`;
+  tab += r.linhas.map((l) => `<tr class="${l.situacao}"><td>${esc(l.data || "")} ${esc(l.hora || "")}${l.fuso ? `<div class="mini">${esc(l.fuso)}</div>` : ""}</td><td>${esc(l.natureza_rotulo || l.natureza || "?")}</td><td class="num">${l.valor_fmt}</td>
+    <td>${esc(l.titular_nome || "")}<div class="mini">${esc(l.banco_rotulo || l.banco || "")} ${esc(l.agencia || "")} ${esc(l.conta || "")}</div></td><td>${esc(l.descricao || "")}<div class="mini">${esc(l.tipo_operacao || "")} ${esc(l.status_origem || "")}</div></td>
+    <td>${l.partes.map((p) => `<div>${esc(p.papel_rotulo || p.papel)}: ${esc(p.nome || "?")} <span class="mini">${esc(p.doc || "")}${p.banco_rotulo ? " · " + esc(p.banco_rotulo) : ""}${p.valor_centavos != null ? " · " + (p.valor_centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : ""}</span></div>`).join("")}${l.parcelas_estado === "divergentes" || l.parcelas_estado === "incompletas" ? `<div class="mini" style="color:#a60">parcelas ${l.parcelas_estado}</div>` : ""}</td>
     <td class="mini">${esc(l.fonte_nome)}<br>${esc(l.local || "")} linha ${l.linha}</td><td>${esc(l.situacao)}<div class="mini">${esc(l.motivo || "")}</div></td><td><button data-det="${l.id}">Detalhes</button></td></tr>`).join("");
   $("#resultados").innerHTML = tab + "</table>";
   if ($("#btn-mais")) $("#btn-mais").onclick = () => pesquisar(r.deslocamento + 500);
@@ -795,7 +795,7 @@ async function detalhes(id) {
   modal(`<h3>Lançamento ${d.id}</h3><p><b>${esc(d.data)} ${esc(d.hora || "")} ${esc(d.fuso || "")}</b> - ${esc(d.natureza || "?")} ${d.valor_fmt} - situação <b>${esc(d.situacao)}</b> ${esc(d.motivo || "")}</p>
     <p>Fonte: <b>${esc(d.fonte_nome)}</b>${d.caminho_no_pacote ? " (" + esc(d.caminho_no_pacote) + ")" : ""}, ${esc(d.local || "")}, linha ${d.linha}; remessa ${esc(d.remessa || "-")}<br>SHA-256: <code>${esc(d.sha256)}</code><br>Chave local (válida só neste arquivo): ${esc(d.chave_local || "-")}</p>
     ${d.titular_obs ? `<div class="aviso">${esc(d.titular_obs)}</div>` : ""}
-    <h3>Origens/destinos (estado das parcelas: ${esc(d.parcelas_estado)})</h3><table><tr><th>Papel</th><th>Nome</th><th>CPF/CNPJ</th><th>Banco/ag/conta</th><th>PIX</th><th>Parcela</th><th>Fonte/linha</th></tr>${d.partes.map((p) => `<tr><td>${esc(p.papel)}</td><td>${esc(p.nome || "")}</td><td>${esc(p.doc || "")} <span class="mini">${esc(p.doc_tipo || "")}</span></td><td>${esc(p.banco || "")} ${esc(p.agencia || "")} ${esc(p.conta || "")}</td><td>${esc(p.pix_chave || "")} ${esc(p.pix_id || "")}</td><td class="num">${p.valor_fmt}</td><td class="mini">${esc(p.local || "")} linha ${p.linha}</td></tr>`).join("")}</table>
+    <h3>Quem enviou e quem recebeu (estado das parcelas: ${esc(d.parcelas_estado)})</h3><table><tr><th>Papel</th><th>Nome</th><th>CPF/CNPJ</th><th>Banco/ag/conta</th><th>PIX</th><th>Parcela</th><th>Fonte/linha</th></tr>${d.partes.map((p) => `<tr><td>${esc(p.papel_rotulo || p.papel)}</td><td>${esc(p.nome || "")}</td><td>${esc(p.doc || "")} <span class="mini">${esc(p.doc_tipo || "")}</span></td><td>${esc(p.banco_rotulo || p.banco || "")} ${esc(p.agencia || "")} ${esc(p.conta || "")}</td><td>${esc(p.pix_chave || "")} ${esc(p.pix_id || "")}</td><td class="num">${p.valor_fmt}</td><td class="mini">${esc(p.local || "")} linha ${p.linha}</td></tr>`).join("")}</table>
     ${d.duplicatas.length ? `<div class="aviso">Duplicatas prováveis: ${d.duplicatas.map((x) => `${esc(x.criterio)} (${esc(x.estado)}) com ${x.lanc_a === d.id ? x.lanc_b : x.lanc_a}`).join("; ")}</div>` : ""}
     <h3>Dados originais</h3><pre>${esc(JSON.stringify(JSON.parse(d.bruto_json), null, 2))}</pre>`);
 }
@@ -1064,7 +1064,7 @@ function htmlLegendaGrafo(g) {
     <button type="button" class="legenda-toggle" id="grafo-legenda-btn" title="Mostrar ou esconder a legenda">${retraida ? "Cores" : "▾ Cores"}</button>
     <div class="legenda-corpo">
       <div><i style="background:#e0b14a"></i>Conta do extrato</div>
-      <div><i style="background:#3ecfbf"></i>Quem enviou ou recebeu</div>
+      <div><i style="background:#3ecfbf"></i>Quem enviou ou recebeu (recebedor)</div>
       <div><i style="background:#c084fc"></i>Mesmo CPF/CNPJ</div>
       <div><i style="background:#e0b14a"></i>Hipótese só por nome</div>
       <p class="mini">Organização: ${esc(nomesLayout[estado.grafoLayout] || estado.grafoLayout)}. Arraste a pessoa ou a conta. Clique na seta para o valor. Fundo = mover o mapa · role = zoom. Setas retas = direção do registro, não prova de origem do dinheiro.</p>
@@ -1358,7 +1358,8 @@ function desenharGrafo(g) {
     $$("#svg-grafo .aresta").forEach((p) => p.classList.remove("ativa"));
     box.classList.remove("caixa-seta");
     const lig = ars.filter((a) => a.de === n.id || a.para === n.id);
-    box.innerHTML = `<b>${esc(n.rotulo)}</b> <span class="mini">${esc(n.tipo)} ${esc(n.detalhe || "")} ${esc(n.identificacao || "")}</span><br>${lig.slice(0, 8).map((a) => `${esc(a.valor_fmt)} · ${a.n} lanç.`).join("<br>") || "sem setas visíveis"}`;
+    const tipoNo = { conta: "conta do extrato", contraparte: "quem enviou ou recebeu", nao_distribuido: "não distribuído" }[n.tipo] || n.tipo;
+    box.innerHTML = `<b>${esc(n.rotulo)}</b> <span class="mini">${esc(tipoNo)} ${esc(n.detalhe || "")} ${esc(n.identificacao || "")}</span><br>${lig.slice(0, 8).map((a) => `${esc(a.valor_fmt)} · ${a.n} lanç.`).join("<br>") || "sem setas visíveis"}`;
   }));
   destacarGrafo($("#gf-busca").value);
 }

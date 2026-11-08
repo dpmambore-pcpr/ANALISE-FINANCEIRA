@@ -18,7 +18,7 @@ def _ler(nome):
 
 class TestInterfaceArquivos(unittest.TestCase):
     def test_versao(self):
-        self.assertEqual(VERSAO, "3.4.10")
+        self.assertEqual(VERSAO, "3.4.11")
 
     def test_html_fluxo_simples(self):
         html = _ler("index.html")
@@ -59,6 +59,9 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn("Pirâmide", html)
         self.assertIn('id="btn-grafo-tela"', html)
         self.assertIn("Tela cheia", html)
+        self.assertIn("quem enviou", html.lower())
+        self.assertIn("recebedor", html.lower())
+        self.assertIn("260 Nubank", html)
         self.assertNotIn("Gerar grafo", html)
 
     def test_js_auto_grafo_e_analise(self):
@@ -88,6 +91,9 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn("sairTelaCheia", js)
         self.assertIn("gz-tela", js)
         self.assertIn("pintarValoresExtrato", js)
+        self.assertIn("papel_rotulo", js)
+        self.assertIn("banco_rotulo", js)
+        self.assertIn("Quem recebeu (recebedor)", js)
         self.assertIn("abrirIANavegador", js)
         self.assertIn("/api/casos/${exigirCaso()}/ia/prompt", js)
         self.assertIn("salvarChaveIA", js)

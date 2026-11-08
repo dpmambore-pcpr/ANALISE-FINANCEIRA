@@ -7,7 +7,7 @@ um crédito específico.
 
 import datetime as dt
 
-from . import pesquisa, protocolo, util
+from . import bancos, pesquisa, protocolo, util
 
 AVISO = ("Relações por coincidência de identificador, data e valor. Não comprovam que o mesmo dinheiro foi "
          "transferido, nem autoria, titularidade efetiva ou ilicitude.")
@@ -31,7 +31,7 @@ def grafo(b, caso_id, filtros, max_nos=80, min_volume=0):
     contas = {}
     for r in b.q("SELECT DISTINCT l.banco, l.agencia, l.conta, l.titular_nome, l.titular_doc_norm FROM lancamentos l WHERE " + w, par):
         k = _conta_key(r)
-        contas.setdefault(k, {"titulares": set(), "docs": set()})
+        contas.setdefault(k, {"titulares": set(), "docs": set(), "banco": r.get("banco"), "agencia": r.get("agencia"), "conta": r.get("conta")})
         if r["titular_nome"]:
             contas[k]["titulares"].add(r["titular_nome"])
         if r["titular_doc_norm"]:
@@ -39,7 +39,8 @@ def grafo(b, caso_id, filtros, max_nos=80, min_volume=0):
     arestas = {}
     nos = {}
     for k, c in contas.items():
-        nos[k] = {"id": k, "tipo": "conta", "rotulo": "; ".join(sorted(c["titulares"])) or k[6:], "detalhe": k[6:],
+        nos[k] = {"id": k, "tipo": "conta", "rotulo": "; ".join(sorted(c["titulares"])) or k[6:],
+                  "detalhe": bancos.rotulo_conta_partes(c.get("banco"), c.get("agencia"), c.get("conta")),
                   "docs": sorted(c["docs"]), "volume": 0}
     linhas = b.q("SELECT l.id, l.natureza, l.valor_centavos, l.parcelas_estado, l.banco, l.agencia, l.conta, "
                  "p.doc_norm, p.nome_norm, p.nome, p.doc, p.valor_centavos AS pv FROM lancamentos l "
@@ -55,7 +56,7 @@ def grafo(b, caso_id, filtros, max_nos=80, min_volume=0):
         elif r["parcelas_estado"] in ("divergentes", "incompletas"):
             pk, ident, rot, valor = "nd:(não distribuído)", "nenhuma", "(parcelas não distribuídas)", None
         else:
-            pk, ident, rot, valor = "anon:(sem contraparte)", "nenhuma", "(sem contraparte identificada)", r["valor_centavos"]
+            pk, ident, rot, valor = "anon:(sem quem enviou ou recebeu)", "nenhuma", "(sem quem enviou ou recebeu)", r["valor_centavos"]
         if valor is None:
             if r["parcelas_estado"] in ("divergentes", "incompletas"):
                 key = (pk, ck) if r["natureza"] == "C" else (ck, pk)
@@ -116,7 +117,7 @@ def sequencias(b, caso_id, inicio, janela_dias=3, tolerancia_pct=0, profundidade
                data_ini=None, data_fim=None):
     """inicio: CPF/CNPJ (dígitos) ou chave 'conta:banco|ag|conta'.
 
-    Para cada débito da conta inicial a uma contraparte que é titular (mesmo documento; nome só
+    Para cada débito da conta inicial a um recebedor que é titular (mesmo documento; nome só
     se por_nome=True) de outra conta presente no caso, procura débitos dessa outra conta dentro
     da janela, com valor até o valor recebido (+ tolerância). Repete até a profundidade.
     """

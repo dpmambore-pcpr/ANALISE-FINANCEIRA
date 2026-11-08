@@ -120,10 +120,10 @@ def prompt_sistema():
 
 
 def _registro_txt(r):
-    cps = "; ".join("%s %s %s parcela %s" % (p["papel"], p["nome"] or "?", p["doc"] or "", util.formatar_centavos(p["valor_centavos"]) or "n/i")
+    cps = "; ".join("%s %s %s parcela %s" % (p.get("papel_rotulo") or p["papel"], p["nome"] or "?", p["doc"] or "", util.formatar_centavos(p["valor_centavos"]) or "n/i")
                     for p in r["partes"])
     return "[id %d | %s linha %s | %s] %s %s %s %s titular=%s conta=%s/%s desc=%s | %s | situação=%s %s" % (
-        r["id"], r["fonte_nome"], r["linha"], r["local"] or "-", r["data"] or "?", r["hora"] or "", r["natureza"] or "?",
+        r["id"], r["fonte_nome"], r["linha"], r["local"] or "-", r["data"] or "?", r["hora"] or "", r.get("natureza_rotulo") or r["natureza"] or "?",
         r["valor_fmt"], r["titular_nome"] or "?", r["agencia"] or "?", r["conta"] or "?", (r["descricao"] or "")[:80], cps,
         r["situacao"], r["motivo"] or "")
 
@@ -140,11 +140,11 @@ def contexto_movimentos(b, caso_id, filtros, max_registros=150):
               "TOTAIS CALCULADOS PELO PROGRAMA (somente registros aceitos): créditos %s em %d lançamentos; débitos %s em %d lançamentos." % (
                   t["creditos_fmt"], t["n_creditos"], t["debitos_fmt"], t["n_debitos"]),
               "FORA DOS TOTAIS: %d pendentes (%s); %d rejeitados." % (t["n_pendentes"], t["pendentes_fmt"], t["n_rejeitados"])]
-    for nome, rk in (("PRINCIPAIS ORIGENS (créditos)", t["origens"]), ("PRINCIPAIS DESTINOS (débitos)", t["destinos"])):
+    for nome, rk in (("PRINCIPAIS ORIGENS — QUEM ENVIOU (créditos)", t["origens"]), ("PRINCIPAIS DESTINOS — QUEM RECEBEU (débitos)", t["destinos"])):
         linhas.append(nome + ":")
         for i in rk["itens"]:
             linhas.append("  - %s %s: %s em %d lançamento(s)" % (i["nome"] or "?", i["doc"] or "", i["soma_fmt"], i["n"]))
-        linhas.append("  - não distribuído (parcelas divergentes/incompletas): %s; sem contraparte: %s" % (
+        linhas.append("  - não distribuído (parcelas divergentes/incompletas): %s; sem quem enviou/recebeu: %s" % (
             rk["nao_distribuido"]["soma_fmt"], rk["sem_contraparte"]["soma_fmt"]))
     for a in t["avisos"]:
         linhas.append("AVISO: " + a)

@@ -99,12 +99,13 @@ def html_relatorio(d):
          "<tr><td>Rejeitados</td><td>%d</td><td>-</td></tr></table>" % t["n_rejeitados"]]
     for a in t["avisos"]:
         p.append("<div class='aviso'>%s</div>" % e(a))
-    for nome, rk in (("Principais origens (créditos)", t["origens"]), ("Principais destinos (débitos)", t["destinos"])):
-        p.append("<h3>%s</h3><table><tr><th>Contraparte</th><th>CPF/CNPJ</th><th>Lançamentos</th><th>Valor</th></tr>" % nome)
+    for nome, rk, col in (("Principais origens — quem enviou (créditos)", t["origens"], "Quem enviou"),
+                          ("Principais destinos — quem recebeu (débitos)", t["destinos"], "Quem recebeu (recebedor)")):
+        p.append("<h3>%s</h3><table><tr><th>%s</th><th>CPF/CNPJ</th><th>Lançamentos</th><th>Valor</th></tr>" % (nome, col))
         for i in rk["itens"]:
             p.append("<tr><td>%s</td><td>%s</td><td>%d</td><td>%s</td></tr>" % (e(i["nome"] or "?"), e(i["doc"] or ""), i["n"], i["soma_fmt"]))
         p.append("<tr><td colspan=3>Não distribuído (parcelas divergentes/incompletas)</td><td>%s</td></tr>" % rk["nao_distribuido"]["soma_fmt"])
-        p.append("<tr><td colspan=3>Sem contraparte identificada</td><td>%s</td></tr></table>" % rk["sem_contraparte"]["soma_fmt"])
+        p.append("<tr><td colspan=3>Sem quem enviou ou recebeu</td><td>%s</td></tr></table>" % rk["sem_contraparte"]["soma_fmt"])
     p.append("<h3>Por conta</h3><table><tr><th>Conta</th><th>Titular</th><th>Créditos</th><th>Débitos</th><th>Registros</th></tr>")
     for c in t["por_conta"]:
         p.append("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%d</td></tr>" % (e(c["conta"]), e(c["titular"] or ""), c["c_fmt"], c["d_fmt"], c["n"]))
@@ -148,12 +149,13 @@ def _estrutura(doc, d):
                                                  ["Rejeitados", t["n_rejeitados"], "-"]])
     for a in t["avisos"]:
         doc.paragrafo("Aviso: " + a)
-    for nome, rk in (("Principais origens (créditos)", t["origens"]), ("Principais destinos (débitos)", t["destinos"])):
+    for nome, rk, col in (("Principais origens — quem enviou (créditos)", t["origens"], "Quem enviou"),
+                          ("Principais destinos — quem recebeu (débitos)", t["destinos"], "Quem recebeu (recebedor)")):
         doc.titulo(nome, 12)
         linhas = [[i["nome"] or "?", i["doc"] or "", i["n"], i["soma_fmt"]] for i in rk["itens"]]
         linhas.append(["Não distribuído (parcelas divergentes/incompletas)", "", rk["nao_distribuido"]["n"], rk["nao_distribuido"]["soma_fmt"]])
-        linhas.append(["Sem contraparte identificada", "", rk["sem_contraparte"]["n"], rk["sem_contraparte"]["soma_fmt"]])
-        doc.tabela(["Contraparte", "CPF/CNPJ", "Lançamentos", "Valor"], linhas)
+        linhas.append(["Sem quem enviou ou recebeu", "", rk["sem_contraparte"]["n"], rk["sem_contraparte"]["soma_fmt"]])
+        doc.tabela([col, "CPF/CNPJ", "Lançamentos", "Valor"], linhas)
     doc.titulo("Por conta", 12)
     doc.tabela(["Conta", "Titular", "Créditos", "Débitos", "Registros"],
                [[c["conta"], c["titular"] or "", c["c_fmt"], c["d_fmt"], c["n"]] for c in t["por_conta"]])

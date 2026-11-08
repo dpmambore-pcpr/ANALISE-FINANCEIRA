@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## 3.4.11
+- **Origem e destino:** os filtros deixam de dizer “contraparte”. Passam a ser **quem enviou o dinheiro** (origem) e **quem recebeu (recebedor)** (destino), na lista, no grafo e nos totais.
+- **Nome do banco:** onde só aparecia o número (260), o programa mostra também o nome (**260 Nubank**, **001 Banco do Brasil**, **341 Itaú Unibanco**).
+
 ## 3.4.10
 - **Grafo em tela cheia:** botão **Tela cheia** no mapa (e acima dele) amplia o gráfico na janela inteira. Esc ou **Sair** volta ao tamanho normal.
 

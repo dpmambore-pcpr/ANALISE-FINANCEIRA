@@ -20,8 +20,12 @@ class TestPesquisa(CasoTeste):
         facs = {f["chave"]: f for f in pesquisa.facetas(self.app.b, self.caso, {})}
         docs = {v["valor"] for v in facs["pessoa_doc"]["valores"]}
         self.assertEqual(docs, {cpf(1), cpf(2), cpf(3), cpf(4), cpf(5)})
-        nomes = {v["rotulo"] for v in facs["cp_nome"]["valores"]}
-        self.assertIn("PESSOA BETA", nomes)
+        enviou = {v["rotulo"] for v in facs["origem_nome"]["valores"]}
+        recebeu = {v["rotulo"] for v in facs["destino_nome"]["valores"]}
+        self.assertIn("PESSOA ALFA", enviou)
+        self.assertIn("PESSOA BETA", recebeu)
+        self.assertIn("Quem enviou o dinheiro - nome", facs["origem_nome"]["rotulo"])
+        self.assertIn("recebedor", facs["destino_nome"]["rotulo"])
         self.assertEqual({v["valor"] for v in facs["banco"]["valores"]}, {"BANCO FICTICIO", "BANCO EXEMPLO"})
         self.assertIn("alfa@exemplo.invalid", {v["valor"] for v in facs["pix"]["valores"]})
         self.assertEqual({v["valor"] for v in facs["mes"]["valores"]}, {"2026-03"})
@@ -186,7 +190,7 @@ class TestRelatorio(CasoTeste):
         texto = html.decode()
         self.assertIn("reproduz", texto)
         self.assertIn(util.sha256_arquivo(exemplo("EXEMPLO_FICTICIO_extrato.csv")), texto)
-        self.assertIn("Natureza: C", texto)
+        self.assertIn("crédito (o dinheiro entrou)", texto)
         docx, _, _ = relatorio.gerar(self.app.b, self.caso, "docx", filtros, "", [], self.usuario, self.app.pasta)
         with zipfile.ZipFile(io.BytesIO(docx)) as z:
             self.assertIn("Memória de cálculo", z.read("word/document.xml").decode())

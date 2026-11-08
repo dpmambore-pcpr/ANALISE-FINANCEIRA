@@ -11,52 +11,90 @@ Regras de cálculo:
 import csv
 import io
 
-from . import identificadores, protocolo, util
+from . import bancos, identificadores, protocolo, util
 
-# chave -> (rótulo, tipo, expressão de valor, expressão de rótulo)
+# chave -> (rótulo, tipo, expressão de valor, expressão de rótulo, papel da parte ou None)
+# papel 'origem' = quem enviou o dinheiro; 'destino' = quem recebeu (recebedor).
 FACETAS = [
-    ("natureza", "Natureza", "l", "COALESCE(l.natureza,'(sem natureza)')", None),
-    ("valor", "Valor", "l", "COALESCE(CAST(l.valor_centavos AS TEXT),'(sem valor)')", None),
-    ("situacao", "Situação na importação", "l", "l.situacao", None),
-    ("pessoa_doc", "CPF/CNPJ (titular ou contraparte)", "u_doc", None, None),
-    ("pessoa_nome", "Nome (titular ou contraparte)", "u_nome", None, None),
-    ("titular_doc", "Titular - CPF/CNPJ", "l", "COALESCE(l.titular_doc_norm,'(não informado)')", "MIN(COALESCE(l.titular_doc,'(não informado)'))"),
-    ("titular_nome", "Titular - nome", "l", "COALESCE(l.titular_nome_norm,'(não informado)')", "MIN(COALESCE(l.titular_nome,'(não informado)'))"),
-    ("conta", "Conta (banco/agência/conta)", "l", "COALESCE(l.banco,'?')||' | ag '||COALESCE(l.agencia,'?')||' | conta '||COALESCE(l.conta,'?')", None),
-    ("banco", "Banco / instituição da conta", "l", "COALESCE(l.banco,'(não informado)')", None),
-    ("cp_doc", "Contraparte - CPF/CNPJ", "p", "COALESCE(p.doc_norm,'(não informado)')", "MIN(COALESCE(p.doc,'(não informado)'))"),
-    ("cp_nome", "Contraparte - nome", "p", "COALESCE(p.nome_norm,'(não informado)')", "MIN(COALESCE(p.nome,'(não informado)'))"),
-    ("cp_banco", "Contraparte - banco", "p", "COALESCE(p.banco,'(não informado)')", None),
-    ("cp_conta", "Contraparte - conta", "p", "COALESCE(p.banco,'?')||' | ag '||COALESCE(p.agencia,'?')||' | conta '||COALESCE(p.conta,'?')", None),
-    ("pix", "Chave PIX (transação ou contraparte)", "u_pix", None, None),
-    ("tipo_operacao", "Tipo de operação", "l", "COALESCE(l.tipo_operacao,'(não informado)')", None),
-    ("descricao", "Descrição / histórico", "l", "COALESCE(l.descricao,'(vazia)')", None),
-    ("mes", "Mês", "l", "COALESCE(substr(l.data,1,7),'(sem data)')", None),
-    ("data", "Data", "l", "COALESCE(l.data,'(sem data)')", None),
-    ("ip", "IP da transação", "l", "COALESCE(l.ip,'(não informado)')", None),
-    ("cidade", "Cidade/UF da transação", "l", "COALESCE(l.cidade,'?')||' / '||COALESCE(l.uf,'?')", None),
-    ("status_origem", "Status informado pelo banco", "l", "COALESCE(l.status_origem,'(não informado)')", None),
-    ("fonte", "Arquivo de origem", "l", "CAST(l.fonte_id AS TEXT)", None),
-    ("remessa", "Remessa", "l", "COALESCE(CAST(l.remessa_id AS TEXT),'(sem remessa)')", None),
+    ("natureza", "Natureza (entrou ou saiu)", "l", "COALESCE(l.natureza,'(sem natureza)')", None, None),
+    ("valor", "Valor", "l", "COALESCE(CAST(l.valor_centavos AS TEXT),'(sem valor)')", None, None),
+    ("situacao", "Situação na importação", "l", "l.situacao", None, None),
+    ("pessoa_doc", "CPF/CNPJ (titular, quem enviou ou quem recebeu)", "u_doc", None, None, None),
+    ("pessoa_nome", "Nome (titular, quem enviou ou quem recebeu)", "u_nome", None, None, None),
+    ("titular_doc", "Titular da conta - CPF/CNPJ", "l", "COALESCE(l.titular_doc_norm,'(não informado)')", "MIN(COALESCE(l.titular_doc,'(não informado)'))", None),
+    ("titular_nome", "Titular da conta - nome", "l", "COALESCE(l.titular_nome_norm,'(não informado)')", "MIN(COALESCE(l.titular_nome,'(não informado)'))", None),
+    ("conta", "Conta do extrato (banco/agência/conta)", "l", "COALESCE(l.banco,'?')||' | ag '||COALESCE(l.agencia,'?')||' | conta '||COALESCE(l.conta,'?')", None, None),
+    ("banco", "Banco da conta do extrato", "l", "COALESCE(l.banco,'(não informado)')", None, None),
+    ("origem_doc", "Quem enviou o dinheiro - CPF/CNPJ", "p", "COALESCE(p.doc_norm,'(não informado)')", "MIN(COALESCE(p.doc,'(não informado)'))", "origem"),
+    ("origem_nome", "Quem enviou o dinheiro - nome", "p", "COALESCE(p.nome_norm,'(não informado)')", "MIN(COALESCE(p.nome,'(não informado)'))", "origem"),
+    ("origem_banco", "Banco de quem enviou", "p", "COALESCE(p.banco,'(não informado)')", None, "origem"),
+    ("origem_conta", "Conta de quem enviou", "p", "COALESCE(p.banco,'?')||' | ag '||COALESCE(p.agencia,'?')||' | conta '||COALESCE(p.conta,'?')", None, "origem"),
+    ("destino_doc", "Quem recebeu (recebedor) - CPF/CNPJ", "p", "COALESCE(p.doc_norm,'(não informado)')", "MIN(COALESCE(p.doc,'(não informado)'))", "destino"),
+    ("destino_nome", "Quem recebeu (recebedor) - nome", "p", "COALESCE(p.nome_norm,'(não informado)')", "MIN(COALESCE(p.nome,'(não informado)'))", "destino"),
+    ("destino_banco", "Banco de quem recebeu", "p", "COALESCE(p.banco,'(não informado)')", None, "destino"),
+    ("destino_conta", "Conta de quem recebeu", "p", "COALESCE(p.banco,'?')||' | ag '||COALESCE(p.agencia,'?')||' | conta '||COALESCE(p.conta,'?')", None, "destino"),
+    ("pix", "Chave PIX (da transação, de quem enviou ou de quem recebeu)", "u_pix", None, None, None),
+    ("tipo_operacao", "Tipo de operação", "l", "COALESCE(l.tipo_operacao,'(não informado)')", None, None),
+    ("descricao", "Descrição / histórico", "l", "COALESCE(l.descricao,'(vazia)')", None, None),
+    ("mes", "Mês", "l", "COALESCE(substr(l.data,1,7),'(sem data)')", None, None),
+    ("data", "Data", "l", "COALESCE(l.data,'(sem data)')", None, None),
+    ("ip", "IP da transação", "l", "COALESCE(l.ip,'(não informado)')", None, None),
+    ("cidade", "Cidade/UF da transação", "l", "COALESCE(l.cidade,'?')||' / '||COALESCE(l.uf,'?')", None, None),
+    ("status_origem", "Status informado pelo banco", "l", "COALESCE(l.status_origem,'(não informado)')", None, None),
+    ("fonte", "Arquivo de origem", "l", "CAST(l.fonte_id AS TEXT)", None, None),
+    ("remessa", "Remessa", "l", "COALESCE(CAST(l.remessa_id AS TEXT),'(sem remessa)')", None, None),
 ]
 FACETA = {f[0]: f for f in FACETAS}
+
+# Filtros antigos "contraparte" = qualquer lado (quem enviou ou quem recebeu).
+_FILTROS_LADO = {
+    "cp_doc": "p.doc_norm",
+    "cp_nome": "p.nome_norm",
+    "cp_banco": "COALESCE(p.banco,'(não informado)')",
+    "cp_conta": "COALESCE(p.banco,'?')||' | ag '||COALESCE(p.agencia,'?')||' | conta '||COALESCE(p.conta,'?')",
+}
+
+ROTULO_NATUREZA = {
+    "C": "C · crédito (o dinheiro entrou)",
+    "D": "D · débito (o dinheiro saiu)",
+}
+ROTULO_PAPEL = {
+    "origem": "enviou (origem)",
+    "destino": "recebeu (recebedor)",
+    "indefinido": "não identificado",
+}
+
+
+def _papel(meta):
+    return meta[5] if len(meta) > 5 else None
+
+
+def _enfeitar_parte(p):
+    p["papel_rotulo"] = ROTULO_PAPEL.get(p.get("papel"), p.get("papel") or "")
+    p["banco_rotulo"] = bancos.rotulo_banco(p.get("banco") or "")
+    return p
 
 
 def _where(caso_id, filtros, exceto=None):
     w0, par = util.sql_in("l.caso_id", caso_id)
     cond = [w0]
     f = filtros or {}
-    for chave, (_, _, tipo, expr, _) in FACETA.items():
+    for chave, meta in FACETA.items():
+        _, _, tipo, expr = meta[0], meta[1], meta[2], meta[3]
         vals = f.get(chave)
         if not vals or chave == exceto:
             continue
         ph = ",".join("?" * len(vals))
+        papel = _papel(meta)
         if tipo == "l":
             cond.append("%s IN (%s)" % (expr, ph))
             par += list(vals)
         elif tipo == "p":
-            cond.append("EXISTS (SELECT 1 FROM partes p WHERE p.lancamento_id=l.id AND %s IN (%s))" % (expr, ph))
+            extra = " AND p.papel=?" if papel else ""
+            cond.append("EXISTS (SELECT 1 FROM partes p WHERE p.lancamento_id=l.id AND %s IN (%s)%s)" % (expr, ph, extra))
             par += list(vals)
+            if papel:
+                par.append(papel)
         elif tipo == "u_doc":
             cond.append("(l.titular_doc_norm IN (%s) OR EXISTS (SELECT 1 FROM partes p WHERE p.lancamento_id=l.id AND p.doc_norm IN (%s)))" % (ph, ph))
             par += list(vals) * 2
@@ -66,6 +104,13 @@ def _where(caso_id, filtros, exceto=None):
         elif tipo == "u_pix":
             cond.append("(l.pix_chave IN (%s) OR EXISTS (SELECT 1 FROM partes p WHERE p.lancamento_id=l.id AND p.pix_chave IN (%s)))" % (ph, ph))
             par += list(vals) * 2
+    for chave, expr in _FILTROS_LADO.items():
+        vals = f.get(chave)
+        if not vals or chave == exceto:
+            continue
+        ph = ",".join("?" * len(vals))
+        cond.append("EXISTS (SELECT 1 FROM partes p WHERE p.lancamento_id=l.id AND %s IN (%s))" % (expr, ph))
+        par += list(vals)
     if f.get("data_ini"):
         cond.append("l.data >= ?")
         par.append(f["data_ini"])
@@ -92,7 +137,8 @@ def _where(caso_id, filtros, exceto=None):
 def descrever_filtros(b, filtros):
     out = []
     f = filtros or {}
-    for chave, (_, rotulo, *_r) in FACETA.items():
+    for chave, meta in FACETA.items():
+        rotulo = meta[1]
         if f.get(chave):
             vals = f[chave]
             if chave == "fonte":
@@ -101,8 +147,14 @@ def descrever_filtros(b, filtros):
                     fo = b.q1("SELECT nome_original FROM fontes WHERE id=?", (int(v),))
                     nomes.append(fo["nome_original"] if fo else v)
                 vals = nomes
-            elif chave in ("pessoa_doc", "titular_doc", "cp_doc"):
+            elif chave in ("pessoa_doc", "titular_doc", "cp_doc", "origem_doc", "destino_doc"):
                 vals = [util.formatar_documento(v) for v in vals]
+            elif chave in ("banco", "origem_banco", "destino_banco", "cp_banco"):
+                vals = [bancos.rotulo_banco(v) for v in vals]
+            elif chave in ("conta", "origem_conta", "destino_conta", "cp_conta"):
+                vals = [bancos.rotulo_conta(v) for v in vals]
+            elif chave == "natureza":
+                vals = [ROTULO_NATUREZA.get(v, v) for v in vals]
             elif chave == "valor":
                 fmt = []
                 for v in vals:
@@ -128,15 +180,18 @@ def facetas(b, caso_id, filtros, limite=5000):
     wf, pf = util.sql_in("caso_id", caso_id)
     fontes = {str(r["id"]): r["nome_original"] for r in b.q("SELECT id, nome_original FROM fontes WHERE " + wf, pf)}
     remessas = {str(r["id"]): r["rotulo"] for r in b.q("SELECT id, rotulo FROM remessas WHERE " + wf, pf)}
-    for chave, rotulo, tipo, expr, expr_rot in FACETAS:
+    for chave, rotulo, tipo, expr, expr_rot, papel in FACETAS:
         w, par = _where(caso_id, filtros, exceto=chave)
         ordem = "n DESC, CAST(v AS INTEGER) DESC" if chave == "valor" else "n DESC, v"
+        extra_p = " AND p.papel=?" if (tipo == "p" and papel) else ""
         if tipo == "l":
             sql = ("SELECT %s AS v, %s AS r, COUNT(*) AS n, SUM(CASE WHEN l.situacao='aceito' THEN l.valor_centavos ELSE 0 END) AS s "
                    "FROM lancamentos l WHERE %s GROUP BY v ORDER BY %s LIMIT %d") % (expr, expr_rot or "NULL", w, ordem, limite)
         elif tipo == "p":
             sql = ("SELECT %s AS v, %s AS r, COUNT(DISTINCT l.id) AS n, NULL AS s FROM lancamentos l JOIN partes p ON p.lancamento_id=l.id "
-                   "WHERE %s GROUP BY v ORDER BY %s LIMIT %d") % (expr, expr_rot or "NULL", w, ordem, limite)
+                   "WHERE %s%s GROUP BY v ORDER BY %s LIMIT %d") % (expr, expr_rot or "NULL", w, extra_p, ordem, limite)
+            if papel:
+                par = par + [papel]
         else:
             col_l, col_p, col_lr, col_pr = {
                 "u_doc": ("l.titular_doc_norm", "p.doc_norm", "l.titular_doc", "p.doc"),
@@ -155,8 +210,14 @@ def facetas(b, caso_id, filtros, limite=5000):
                 rot = fontes.get(r["v"], r["v"])
             elif chave == "remessa":
                 rot = remessas.get(r["v"], r["v"])
-            elif chave in ("pessoa_doc", "titular_doc", "cp_doc") and r["v"] and util.so_digitos(r["v"]) == r["v"]:
+            elif chave in ("pessoa_doc", "titular_doc", "cp_doc", "origem_doc", "destino_doc") and r["v"] and util.so_digitos(r["v"]) == r["v"]:
                 rot = util.formatar_documento(r["v"])
+            elif chave in ("banco", "origem_banco", "destino_banco", "cp_banco"):
+                rot = bancos.rotulo_banco(r["v"])
+            elif chave in ("conta", "origem_conta", "destino_conta", "cp_conta"):
+                rot = bancos.rotulo_conta(r["v"])
+            elif chave == "natureza":
+                rot = ROTULO_NATUREZA.get(r["v"], r["v"])
             elif chave == "valor":
                 try:
                     rot = util.formatar_centavos(int(r["v"]))
@@ -208,9 +269,10 @@ def totais(b, caso_id, filtros):
         "avisos": [],
     }
     f = filtros or {}
-    if f.get("cp_doc") or f.get("cp_nome") or f.get("pessoa_doc") or f.get("pessoa_nome"):
+    if f.get("cp_doc") or f.get("cp_nome") or f.get("pessoa_doc") or f.get("pessoa_nome") or f.get("origem_doc") or f.get("destino_doc") or f.get("origem_nome") or f.get("destino_nome"):
         cond, cpar = [], []
-        for chave, col in (("cp_doc", "p.doc_norm"), ("cp_nome", "p.nome_norm"), ("pessoa_doc", "p.doc_norm"), ("pessoa_nome", "p.nome_norm")):
+        for chave, col in (("cp_doc", "p.doc_norm"), ("cp_nome", "p.nome_norm"), ("pessoa_doc", "p.doc_norm"), ("pessoa_nome", "p.nome_norm"),
+                           ("origem_doc", "p.doc_norm"), ("destino_doc", "p.doc_norm"), ("origem_nome", "p.nome_norm"), ("destino_nome", "p.nome_norm")):
             if f.get(chave):
                 cond.append("%s IN (%s)" % (col, ",".join("?" * len(f[chave]))))
                 cpar += list(f[chave])
@@ -219,15 +281,16 @@ def totais(b, caso_id, filtros):
                "AND l.parcelas_estado IN ('conferidas','unica') AND (%s) GROUP BY l.natureza") % (w, " OR ".join(cond))
         atrib = {r["nat"]: r["s"] for r in b.q(sql, par + cpar)}
         out["atribuivel_contrapartes"] = {"C": util.formatar_centavos(atrib.get("C", 0)), "D": util.formatar_centavos(atrib.get("D", 0))}
-        out["avisos"].append("Com filtro de contraparte, os totais mostram o valor integral dos lançamentos em que ela aparece. "
-                             "O valor atribuível às contrapartes selecionadas (somente parcelas conferidas) é %s em créditos e %s em débitos."
+        out["avisos"].append("Com filtro de quem enviou ou recebeu, os totais mostram o valor integral dos lançamentos em que a pessoa aparece. "
+                             "O valor atribuível às pessoas selecionadas (somente parcelas conferidas) é %s em créditos e %s em débitos."
                              % (out["atribuivel_contrapartes"]["C"], out["atribuivel_contrapartes"]["D"]))
     contas = b.q("SELECT COALESCE(l.banco,'?')||' | ag '||COALESCE(l.agencia,'?')||' | conta '||COALESCE(l.conta,'?') AS conta, "
                  "MIN(l.titular_nome) AS titular, "
                  "COALESCE(SUM(CASE WHEN l.situacao='aceito' AND l.natureza='C' THEN l.valor_centavos END),0) AS c, "
                  "COALESCE(SUM(CASE WHEN l.situacao='aceito' AND l.natureza='D' THEN l.valor_centavos END),0) AS d, COUNT(*) AS n "
                  "FROM lancamentos l WHERE %s GROUP BY conta ORDER BY n DESC LIMIT 50" % w, par)
-    out["por_conta"] = [dict(r, c_fmt=util.formatar_centavos(r["c"]), d_fmt=util.formatar_centavos(r["d"])) for r in contas]
+    out["por_conta"] = [dict(r, c_fmt=util.formatar_centavos(r["c"]), d_fmt=util.formatar_centavos(r["d"]),
+                             conta=bancos.rotulo_conta(r["conta"])) for r in contas]
     if len(contas) > 1:
         out["avisos"].append("A seleção reúne %d contas. Se houver transferências entre elas, a mesma operação pode aparecer como "
                              "débito em uma e crédito em outra; o total geral não elimina essa repetição." % len(contas))
@@ -241,7 +304,7 @@ def totais(b, caso_id, filtros):
         out["avisos"].append("%d registro(s) pendente(s) (%s) estão fora dos totais; veja o motivo em Detalhes." % (t["n_pend"], out["pendentes_fmt"]))
     nd = out["origens"]["nao_distribuido"]["n"] + out["destinos"]["nao_distribuido"]["n"]
     if nd:
-        out["avisos"].append("%d lançamento(s) com parcelas divergentes ou incompletas não foram distribuídos entre contrapartes." % nd)
+        out["avisos"].append("%d lançamento(s) com parcelas divergentes ou incompletas não foram distribuídos entre quem enviou e quem recebeu." % nd)
     return out
 
 
@@ -262,7 +325,9 @@ def registros(b, caso_id, filtros, limite=500, deslocamento=0, ordem="data"):
             partes.setdefault(p["lancamento_id"], []).append(p)
     for r in linhas:
         r["valor_fmt"] = util.formatar_centavos(r["valor_centavos"])
-        r["partes"] = partes.get(r["id"], [])
+        r["banco_rotulo"] = bancos.rotulo_banco(r.get("banco") or "")
+        r["natureza_rotulo"] = ROTULO_NATUREZA.get(r.get("natureza"), r.get("natureza") or "?")
+        r["partes"] = [_enfeitar_parte(dict(p)) for p in partes.get(r["id"], [])]
     total = b.q1("SELECT COUNT(*) AS n FROM lancamentos l WHERE " + w, par)["n"]
     return {"linhas": linhas, "total": total, "limite": limite, "deslocamento": deslocamento}
 
@@ -273,9 +338,12 @@ def detalhe(b, lanc_id):
     if not l:
         return None
     l["valor_fmt"] = util.formatar_centavos(l["valor_centavos"])
+    l["banco_rotulo"] = bancos.rotulo_banco(l.get("banco") or "")
+    l["natureza_rotulo"] = ROTULO_NATUREZA.get(l.get("natureza"), l.get("natureza") or "?")
     l["partes"] = b.q("SELECT * FROM partes WHERE lancamento_id=? ORDER BY ordem", (lanc_id,))
     for p in l["partes"]:
         p["valor_fmt"] = util.formatar_centavos(p["valor_centavos"])
+        _enfeitar_parte(p)
     l["duplicatas"] = b.q("SELECT * FROM duplicatas WHERE lanc_a=? OR lanc_b=?", (lanc_id, lanc_id))
     return l
 
@@ -286,7 +354,7 @@ def exportar_csv(b, caso_id, filtros, limite=200000):
     saida = io.StringIO()
     wr = csv.writer(saida, delimiter=";")
     wr.writerow(["id", "data", "hora", "fuso", "natureza", "valor", "situacao", "motivo", "consolidado_em", "titular", "cpf_cnpj_titular",
-                 "banco", "agencia", "conta", "descricao", "tipo_operacao", "chave_pix", "ip", "contrapartes (papel|nome|doc|banco|ag|conta|parcela)",
+                 "banco", "agencia", "conta", "descricao", "tipo_operacao", "chave_pix", "ip", "origem_destino (papel|nome|doc|banco|ag|conta|parcela)",
                  "estado_parcelas", "arquivo", "sha256", "local", "linha", "chave_local"])
     for r in b.q("SELECT l.*, f.nome_original, f.sha256 FROM lancamentos l JOIN fontes f ON f.id=l.fonte_id WHERE %s "
                  "ORDER BY l.data, l.hora, l.id LIMIT ?" % w, par + [limite]):
@@ -330,6 +398,8 @@ def facetas_identificadores(b, caso_id, busca=None, tabelas=None, limite=5000):
         for r in linhas:
             if tipo in ("cpf", "cnpj"):
                 r["r"] = util.formatar_documento(r["v"])
+            elif tipo in ("banco", "conta"):
+                r["r"] = bancos.rotulo_conta(r["r"] or r["v"])
             r["origens"] = [ROTULO_TABELA.get(t, t) for t in (r.pop("tabs") or "").split(",") if t]
         out.append({"tipo": tipo, "rotulo": rotulo, "valores": linhas, "truncado": len(linhas) >= limite})
     return out
@@ -346,7 +416,7 @@ def _contexto(b, tabela, reg_id):
                  "FROM partes p JOIN lancamentos l ON l.id=p.lancamento_id WHERE p.id=?", (reg_id,))
         if r:
             return "%s de lançamento %s %s %s (titular %s); parcela %s [lançamento %d]" % (
-                r["papel"], r["data"] or "", r["natureza"] or "?", util.formatar_centavos(r["vl"]), r["titular_nome"] or "?",
+                ROTULO_PAPEL.get(r["papel"], r["papel"]), r["data"] or "", r["natureza"] or "?", util.formatar_centavos(r["vl"]), r["titular_nome"] or "?",
                 util.formatar_centavos(r["valor_centavos"]) or "não informada", r["lid"])
     if tabela == "acessos":
         r = b.q1("SELECT * FROM acessos WHERE id=?", (reg_id,))
@@ -357,7 +427,7 @@ def _contexto(b, tabela, reg_id):
     if tabela == "titulares":
         r = b.q1("SELECT * FROM titulares WHERE id=?", (reg_id,))
         if r:
-            return "%s (%s) vínculo %s, banco %s ag %s conta %s" % (r["nome"], r["doc"], r["tipo_vinculo"] or "?", r["banco"] or "?",
+            return "%s (%s) vínculo %s, banco %s ag %s conta %s" % (r["nome"], r["doc"], r["tipo_vinculo"] or "?", bancos.rotulo_banco(r["banco"] or "?"),
                                                                     r["agencia"] or "?", r["conta"] or "?")
     if tabela == "paginas":
         r = b.q1("SELECT pagina FROM paginas WHERE id=?", (reg_id,))
@@ -418,7 +488,12 @@ def acessos(b, caso_id, filtros, limite=2000):
         vals = b.q("SELECT COALESCE(CAST(a.%s AS TEXT),'(vazio)') AS v, COUNT(*) AS n FROM acessos a WHERE %s GROUP BY v "
                    "ORDER BY n DESC, v LIMIT 5000" % (k, w), par)
         for v in vals:
-            v["rotulo"] = fontes.get(v["v"], v["v"]) if k == "fonte_id" else v["v"]
+            if k == "fonte_id":
+                v["rotulo"] = fontes.get(v["v"], v["v"])
+            elif k == "banco":
+                v["rotulo"] = bancos.rotulo_banco(v["v"])
+            else:
+                v["rotulo"] = v["v"]
         facs.append({"chave": k, "rotulo": rot, "valores": [{"valor": v["v"], "rotulo": v["rotulo"], "n": v["n"]} for v in vals]})
     w, par = _where_acessos(caso_id, filtros)
     linhas = b.q("SELECT a.*, f.nome_original AS fonte_nome, f.sha256 FROM acessos a JOIN fontes f ON f.id=a.fonte_id WHERE %s "
