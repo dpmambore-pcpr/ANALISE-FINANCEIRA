@@ -237,6 +237,36 @@ def _preparar(b, caso_id, pergunta, filtros=None, fonte_id=None, usar_conhecimen
     return mensagens, alcance, refs, ctx
 
 
+SITES_NAVEGADOR = {
+    "chatgpt": "https://chatgpt.com/",
+    "claude": "https://claude.ai/new",
+    "gemini": "https://gemini.google.com/app",
+}
+
+
+def texto_para_colar(b, caso_id, usuario, pergunta, filtros=None, fonte_id=None, usar_conhecimento=True):
+    """Monta o texto do caso para colar no ChatGPT, Claude ou Gemini no navegador (sem chave de API)."""
+    auditoria.exigir(b, caso_id, usuario, "analista")
+    pergunta = (pergunta or "").strip() or "Faça a análise preliminar do caso com os dados acima."
+    mensagens, alcance, refs, ctx = _preparar(b, caso_id, pergunta, filtros, fonte_id, usar_conhecimento, True, None)
+    blocos = []
+    for m in mensagens:
+        txt = (m.get("content") or "").strip()
+        if txt:
+            blocos.append(txt)
+    texto = "\n\n".join(blocos)
+    auditoria.registrar(b, caso_id, usuario, "prompt_ia_navegador",
+                        {"pergunta": pergunta, "alcance": alcance, "caracteres": len(texto),
+                         "sha256_contexto": util.sha256_bytes(ctx.encode("utf-8"))})
+    return {
+        "texto": texto,
+        "alcance": alcance,
+        "referencias": refs,
+        "sites": dict(SITES_NAVEGADOR),
+        "aviso": "Texto copiado. Cole no site (Ctrl+V). Entrar no ChatGPT/Claude/Gemini no navegador já basta — não precisa de chave de API.",
+    }
+
+
 def perguntar(b, caso_id, usuario, modelo, pergunta, filtros=None, fonte_id=None, usar_conhecimento=True, porta=None,
               incluir_analise=True, historico=None, pasta=None, aprender=True):
     if not modelo:

@@ -160,6 +160,32 @@ td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-n
 tr.pendente td { background: #fff8e6; }
 tr.rejeitado td { background: #fdecec; color: #777; }
 tr.consolidado td { text-decoration: line-through; color: #888; }
+.valores-extrato { margin: 12px 0 16px; }
+.valores-extrato h3 { margin: 0 0 4px; }
+.lista-valores {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 6px;
+  max-height: 280px;
+  overflow: auto;
+  margin-top: 8px;
+  padding: 4px 0;
+}
+.lista-valores .valor-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: #f8fafc;
+  cursor: pointer;
+}
+.lista-valores .valor-item:hover { border-color: var(--ouro); }
+.lista-valores .valor-item.marcada { background: #eef4ff; border-color: var(--navy3); }
+.lista-valores .valor-qtd { font-weight: 700; color: var(--navy); }
+.lista-valores .valor-n { margin-left: auto; color: var(--texto-suave); white-space: nowrap; }
 .facetas { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
 .faceta { position: relative; }
 .faceta > button { background: #fff; }
@@ -537,6 +563,7 @@ ol.fila-arqs button { margin-left: 8px; }
   padding: 16px 18px;
 }
 .chat-composer { position: sticky; bottom: 0; background: var(--fundo); padding: 8px 0 4px; }
+.gemini-form textarea { width: 100%; margin: 8px 0; }
 .gemini-form label { display: block; margin: 8px 0; }
 .gemini-form input[type="password"], .gemini-form input[type="text"], #gemini-endpoint {
   min-width: min(100%, 420px); max-width: 100%;

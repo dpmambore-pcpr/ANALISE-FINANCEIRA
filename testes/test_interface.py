@@ -18,7 +18,7 @@ def _ler(nome):
 
 class TestInterfaceArquivos(unittest.TestCase):
     def test_versao(self):
-        self.assertEqual(VERSAO, "3.4.8")
+        self.assertEqual(VERSAO, "3.4.9")
 
     def test_html_fluxo_simples(self):
         html = _ler("index.html")
@@ -35,6 +35,13 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn("btn-analisar-juntos", html)
         self.assertIn("estante-casos", html)
         self.assertIn("056-PCPR-000677-20", html)
+        self.assertIn('id="valores-extrato"', html)
+        self.assertIn('id="grafo-valores-lista"', html)
+        self.assertIn("Valores das transferências", html)
+        self.assertIn("Abrir no ChatGPT", html)
+        self.assertIn("Abrir no Claude", html)
+        self.assertIn("chatgpt.com", html)
+        self.assertIn("não precisa de chave", html.lower())
         self.assertIn("aistudio.google.com/apikey", html)
         self.assertIn("platform.openai.com/api-keys", html)
         self.assertIn("console.anthropic.com", html)
@@ -75,6 +82,9 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn("data-layout=\"torre\"", js)
         self.assertIn('id="gf-valores"', js)
         self.assertIn("grafo-legenda-btn", js)
+        self.assertIn("pintarValoresExtrato", js)
+        self.assertIn("abrirIANavegador", js)
+        self.assertIn("/api/casos/${exigirCaso()}/ia/prompt", js)
         self.assertIn("salvarChaveIA", js)
         self.assertIn("chatgpt:", js)
         self.assertIn("claude:", js)
@@ -108,6 +118,8 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn(".grafo-org-in", css)
         self.assertIn(".grafo-legenda.retraida", css)
         self.assertIn(".chaves-ia", css)
+        self.assertIn(".lista-valores", css)
+        self.assertIn(".valores-extrato", css)
         self.assertIn(".no-grafo", css)
         self.assertIn(".aresta.ativa", css)
 

@@ -79,6 +79,16 @@ class TestIA(CasoTeste):
         self.assertEqual(FalsoOllama.recebido[0]["options"]["temperature"], 0.1)
         self.assertTrue(self.app.b.q1("SELECT * FROM auditoria WHERE acao='pergunta_ia'"))
 
+    def test_texto_para_colar_no_navegador(self):
+        self.importar_tabela(exemplo("EXEMPLO_FICTICIO_extrato.csv"))
+        r = ia.texto_para_colar(self.app.b, self.caso, self.usuario, "quais pix existem?")
+        self.assertIn("quais pix existem", r["texto"].lower())
+        self.assertIn("chatgpt.com", r["sites"]["chatgpt"])
+        self.assertIn("claude.ai", r["sites"]["claude"])
+        self.assertIn("gemini.google.com", r["sites"]["gemini"])
+        self.assertTrue(r["alcance"]["total_selecao"] >= 1)
+        self.assertTrue(self.app.b.q1("SELECT * FROM auditoria WHERE acao='prompt_ia_navegador'"))
+
     def test_modelfile(self):
         mf = conhecimento.modelfile("qwen3:4b", "regras")
         self.assertTrue(mf.startswith("FROM qwen3:4b"))

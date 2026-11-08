@@ -762,6 +762,16 @@ def r_conversa(h, q, c, i):
     h.enviar(200, {"id": int(i), "mensagens": ia.historico_conversa(h.app.b, caso, int(i), 200)})
 
 
+@rota("POST", r"/api/casos/(\d+)/ia/prompt")
+def r_ia_prompt(h, q, c):
+    caso = h.ler_caso(c)
+    d = h.json_corpo()
+    h.enviar(200, ia.texto_para_colar(
+        h.app.b, caso, h.usuario, d.get("pergunta") or "",
+        filtros=d.get("filtros"), fonte_id=d.get("fonte_id") or None,
+        usar_conhecimento=bool(d.get("usar_conhecimento", True))))
+
+
 @rota("POST", r"/api/casos/(\d+)/ia")
 def r_ia(h, q, c):
     caso = h.ler_caso(c)

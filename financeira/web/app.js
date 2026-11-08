@@ -688,6 +688,53 @@ function criarFaceta(container, faceta, selecionados, aoMudar, opcoes) {
 }
 document.addEventListener("click", () => $$(".faceta-painel").forEach((p) => p.remove()));
 
+function vezesLanc(n) {
+  const q = +n || 0;
+  return q === 1 ? "1 lançamento" : q + " lançamentos";
+}
+function pintarValoresExtrato(el, faceta, selecionados, aoMudar, buscaSel) {
+  if (!el) return;
+  const valores = (faceta && faceta.valores) || [];
+  const sel = new Set(selecionados || []);
+  const busca = buscaSel ? $(buscaSel) : null;
+  const termo = (busca && busca.value || "").trim().toLowerCase().replace(/\s/g, "");
+  const vis = valores.filter((v) => {
+    if (!termo) return true;
+    const rot = String(v.rotulo || "").toLowerCase().replace(/\s/g, "");
+    return rot.includes(termo) || String(v.valor || "").includes(termo);
+  });
+  if (!valores.length) {
+    el.innerHTML = '<p class="nota">Nenhum valor no extrato ainda. Importe o arquivo na etapa 1.</p>';
+    return;
+  }
+  if (!vis.length) {
+    el.innerHTML = '<p class="nota">Nenhuma quantia com esse texto.</p>';
+    return;
+  }
+  el.innerHTML = vis.map((v) => {
+    const on = sel.has(v.valor);
+    return `<label class="valor-item${on ? " marcada" : ""}"><input type="checkbox" data-valor="${esc(v.valor)}" ${on ? "checked" : ""}>
+      <span class="valor-qtd">${esc(v.rotulo)}</span>
+      <span class="valor-n">${vezesLanc(v.n)}</span></label>`;
+  }).join("");
+  $$("input[type=checkbox]", el).forEach((cb) => {
+    cb.onchange = () => {
+      if (cb.checked) sel.add(cb.dataset.valor);
+      else sel.delete(cb.dataset.valor);
+      aoMudar([...sel]);
+    };
+  });
+}
+function valoresVisiveis(faceta, buscaSel) {
+  const valores = (faceta && faceta.valores) || [];
+  const termo = ($(buscaSel) && $(buscaSel).value || "").trim().toLowerCase().replace(/\s/g, "");
+  return valores.filter((v) => {
+    if (!termo) return true;
+    const rot = String(v.rotulo || "").toLowerCase().replace(/\s/g, "");
+    return rot.includes(termo) || String(v.valor || "").includes(termo);
+  });
+}
+
 // ------------------------------------------------------------------ pesquisar
 function lerFiltrosSimples() {
   const f = estado.filtros;
@@ -698,9 +745,22 @@ function lerFiltrosSimples() {
 async function carregarFacetas() {
   const facs = await api("POST", `/api/casos/${exigirCaso()}/facetas`, { filtros: lerFiltrosSimples() });
   estado.facetas = facs;
+  const valor = facs.find((f) => f.chave === "valor");
+  estado.facetaValor = valor;
+  const redesenharValores = () => pintarValoresExtrato($("#valores-extrato"), valor, estado.filtros.valor || [], (vals) => {
+    estado.filtros.valor = vals;
+    pesquisar();
+  }, "#valores-busca");
+  redesenharValores();
+  if ($("#valores-busca")) $("#valores-busca").oninput = redesenharValores;
+  if ($("#valores-todos")) $("#valores-todos").onclick = () => {
+    estado.filtros.valor = valoresVisiveis(valor, "#valores-busca").map((v) => v.valor);
+    pesquisar();
+  };
+  if ($("#valores-nenhum")) $("#valores-nenhum").onclick = () => { estado.filtros.valor = []; pesquisar(); };
   const cont = $("#facetas");
   cont.innerHTML = "";
-  facs.forEach((f) => criarFaceta(cont, f, estado.filtros[f.chave], (vals) => { estado.filtros[f.chave] = vals; pesquisar(); }));
+  facs.filter((f) => f.chave !== "valor").forEach((f) => criarFaceta(cont, f, estado.filtros[f.chave], (vals) => { estado.filtros[f.chave] = vals; pesquisar(); }));
 }
 async function pesquisar(deslocamento = 0) {
   const caso = exigirCaso();
@@ -795,14 +855,33 @@ function htmlVazioGrafo(titulo, texto, aba) {
 }
 async function carregarGrafoFiltros() {
   if (!estado.caso) {
+    if ($("#grafo-valores-lista")) $("#grafo-valores-lista").innerHTML = '<p class="nota">Selecione um caso para ver os valores do extrato.</p>';
     $("#grafo-area").innerHTML = htmlVazioGrafo("Selecione um caso no topo", "Depois importe o extrato. O mapa de transferências aparece sozinho.", "casos");
     return;
   }
   try {
     const facs = await api("POST", `/api/casos/${exigirCaso()}/facetas`, { filtros: lerFiltrosGrafo() });
+    const valor = facs.find((f) => f.chave === "valor");
+    estado.facetaValorGrafo = valor;
+    const redesenhar = () => pintarValoresExtrato($("#grafo-valores-lista"), valor, estado.gFiltros.valor || [], (vals) => {
+      estado.gFiltros.valor = vals;
+      agendarGrafo();
+    }, "#grafo-valores-busca");
+    redesenhar();
+    if ($("#grafo-valores-busca")) $("#grafo-valores-busca").oninput = redesenhar;
+    if ($("#grafo-valores-todos")) $("#grafo-valores-todos").onclick = () => {
+      estado.gFiltros.valor = valoresVisiveis(valor, "#grafo-valores-busca").map((v) => v.valor);
+      redesenhar();
+      agendarGrafo();
+    };
+    if ($("#grafo-valores-nenhum")) $("#grafo-valores-nenhum").onclick = () => {
+      estado.gFiltros.valor = [];
+      redesenhar();
+      agendarGrafo();
+    };
     const cont = $("#grafo-facetas");
     cont.innerHTML = "";
-    facs.forEach((f) => criarFaceta(cont, f, estado.gFiltros[f.chave], (vals) => {
+    facs.filter((f) => f.chave !== "valor").forEach((f) => criarFaceta(cont, f, estado.gFiltros[f.chave], (vals) => {
       estado.gFiltros[f.chave] = vals;
       agendarGrafo();
     }, { aoVivo: true }));
@@ -1435,6 +1514,42 @@ function corpoIA() {
     janela_vitima_dias: +$("#ia-janela").value || 7,
   };
 }
+async function abrirIANavegador(site) {
+  exigirCaso();
+  const st = $("#ia-colar-status");
+  st.textContent = "Preparando o texto do caso…";
+  try {
+    const corpo = corpoIA();
+    const pergunta = (($("#ia-pergunta-site") && $("#ia-pergunta-site").value) || corpo.pergunta || "").trim()
+      || "Faça a análise preliminar do caso com os dados acima.";
+    const r = await api("POST", `/api/casos/${exigirCaso()}/ia/prompt`, {
+      pergunta, filtros: corpo.filtros, fonte_id: corpo.fonte_id,
+      usar_conhecimento: corpo.usar_conhecimento,
+    });
+    estado.perguntaNuvem = pergunta;
+    if ($("#ia-prompt-copia")) $("#ia-prompt-copia").value = r.texto || "";
+    try { await navigator.clipboard.writeText(r.texto || ""); }
+    catch (e) { /* o quadro abaixo ainda mostra o texto para copiar na mão */ }
+    const url = (r.sites && r.sites[site]) || (site === "chatgpt" ? "https://chatgpt.com/" : site === "claude" ? "https://claude.ai/new" : "https://gemini.google.com/app");
+    window.open(url, "_blank", "noopener");
+    const nome = site === "chatgpt" ? "ChatGPT" : site === "claude" ? "Claude" : "Gemini";
+    st.innerHTML = `<span class="ok">Texto copiado. No ${esc(nome)} que abrir, cole com <b>Ctrl+V</b> e envie. Se a cópia não foi, abra “Ver o texto que será colado” e copie dali.</span>`;
+  } catch (e) { st.innerHTML = `<span class="erro">${esc(e.message)}</span>`; }
+}
+if ($("#btn-abrir-chatgpt")) $("#btn-abrir-chatgpt").onclick = () => abrirIANavegador("chatgpt");
+if ($("#btn-abrir-claude")) $("#btn-abrir-claude").onclick = () => abrirIANavegador("claude");
+if ($("#btn-abrir-gemini")) $("#btn-abrir-gemini").onclick = () => abrirIANavegador("gemini");
+if ($("#btn-guardar-nuvem")) $("#btn-guardar-nuvem").onclick = async () => {
+  const resp = ($("#ia-resposta-nuvem") && $("#ia-resposta-nuvem").value || "").trim();
+  const pergunta = (estado.perguntaNuvem || ($("#ia-pergunta") && $("#ia-pergunta").value) || "").trim();
+  if (!resp) return alert("Cole a resposta do ChatGPT, Claude ou Gemini no quadro.");
+  if (!pergunta) return alert("Escreva também a pergunta que você fez no site.");
+  try {
+    await api("POST", "/api/ia/correcoes", { caso_id: estado.caso, pergunta, resposta_revisada: resp });
+    $("#ia-colar-status").innerHTML = '<span class="ok">Resposta guardada neste computador. A IA local usa nas próximas perguntas.</span>';
+    $("#ia-resposta-nuvem").value = "";
+  } catch (e) { alert(e.message); }
+};
 function pintarChat(msgs) {
   const el = $("#ia-chat");
   if (!msgs || !msgs.length) { el.innerHTML = '<div class="msg sistema">Nenhuma mensagem nesta conversa. Gere a análise ou pergunte — funciona sem Ollama e sem Gemini.</div>'; return; }

@@ -130,12 +130,13 @@ def facetas(b, caso_id, filtros, limite=5000):
     remessas = {str(r["id"]): r["rotulo"] for r in b.q("SELECT id, rotulo FROM remessas WHERE " + wf, pf)}
     for chave, rotulo, tipo, expr, expr_rot in FACETAS:
         w, par = _where(caso_id, filtros, exceto=chave)
+        ordem = "n DESC, CAST(v AS INTEGER) DESC" if chave == "valor" else "n DESC, v"
         if tipo == "l":
             sql = ("SELECT %s AS v, %s AS r, COUNT(*) AS n, SUM(CASE WHEN l.situacao='aceito' THEN l.valor_centavos ELSE 0 END) AS s "
-                   "FROM lancamentos l WHERE %s GROUP BY v ORDER BY n DESC, v LIMIT %d") % (expr, expr_rot or "NULL", w, limite)
+                   "FROM lancamentos l WHERE %s GROUP BY v ORDER BY %s LIMIT %d") % (expr, expr_rot or "NULL", w, ordem, limite)
         elif tipo == "p":
             sql = ("SELECT %s AS v, %s AS r, COUNT(DISTINCT l.id) AS n, NULL AS s FROM lancamentos l JOIN partes p ON p.lancamento_id=l.id "
-                   "WHERE %s GROUP BY v ORDER BY n DESC, v LIMIT %d") % (expr, expr_rot or "NULL", w, limite)
+                   "WHERE %s GROUP BY v ORDER BY %s LIMIT %d") % (expr, expr_rot or "NULL", w, ordem, limite)
         else:
             col_l, col_p, col_lr, col_pr = {
                 "u_doc": ("l.titular_doc_norm", "p.doc_norm", "l.titular_doc", "p.doc"),
@@ -145,7 +146,7 @@ def facetas(b, caso_id, filtros, limite=5000):
             sql = ("SELECT v, MIN(r) AS r, COUNT(DISTINCT lid) AS n, NULL AS s FROM ("
                    "SELECT %s AS v, %s AS r, l.id AS lid FROM lancamentos l WHERE %s AND %s IS NOT NULL "
                    "UNION ALL SELECT %s, %s, l.id FROM lancamentos l JOIN partes p ON p.lancamento_id=l.id WHERE %s AND %s IS NOT NULL"
-                   ") GROUP BY v ORDER BY n DESC, v LIMIT %d") % (col_l, col_lr, w, col_l, col_p, col_pr, w, col_p, limite)
+                   ") GROUP BY v ORDER BY %s LIMIT %d") % (col_l, col_lr, w, col_l, col_p, col_pr, w, col_p, ordem, limite)
             par = par + par
         valores = []
         for r in b.q(sql, par):

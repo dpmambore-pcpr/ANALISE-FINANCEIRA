@@ -28,6 +28,10 @@ class TestPesquisa(CasoTeste):
         vals = {v["valor"] for v in facs["valor"]["valores"]}
         self.assertIn("60000", vals)
         self.assertTrue(any(v["rotulo"].startswith("R$") for v in facs["valor"]["valores"]))
+        por = {v["valor"]: v for v in facs["valor"]["valores"]}
+        self.assertEqual(por["60000"]["n"], 1)
+        self.assertEqual(por["30000"]["n"], 2)
+        self.assertEqual(por["30000"]["rotulo"], "R$ 300,00")
         t = pesquisa.totais(self.app.b, self.caso, {"valor": ["60000"]})
         self.assertEqual((t["creditos"], t["n_creditos"]), (60000, 1))
         desc = pesquisa.descrever_filtros(self.app.b, {"valor": ["60000"]})
