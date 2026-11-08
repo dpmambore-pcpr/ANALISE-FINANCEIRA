@@ -165,7 +165,7 @@ async function carregarCasos() {
           <li>Escreva seu nome no topo (fica neste computador).</li>
           <li>Vá em <b>1. Importar</b> e escolha o extrato — o programa lê o número SIMBA no arquivo e pergunta se cria um caso novo ou acrescenta a um antigo.</li>
           <li>Ou clique num caso abaixo, ou marque dois ou mais e <b>Analisar juntos</b>.</li>
-          <li>Abra <b>3. Grafo</b> e <b>4. Análise</b>: o programa monta sozinho. Gemini é opcional, com passo a passo na própria aba.</li>
+          <li>Abra <b>3. Grafo</b> e <b>4. Análise</b>: o programa monta sozinho. Se quiser, cole a chave do Gemini, ChatGPT ou Claude na Análise.</li>
         </ol></div>`;
     } else {
       const juntos = atual && atual.conjunto ? " Recorte com vários casos." : "";
