@@ -75,19 +75,20 @@
 
 <section id="aba-importar" class="aba">
   <h2>1. Importar o extrato</h2>
-  <p class="lead">Escolha o arquivo. O programa lê o nome (ex.: <code>056-PCPR-000677-20</code>) e pergunta se cria um caso novo ou acrescenta a um antigo. Se o nome for só o protocolo ou “extrato detalhado”, o caso fica <b>Caso 677</b>; se tiver um apelido (elon musk, casa mambore, gordo), fica <b>Caso 677 elon musk</b>. Se for movimentação, os lançamentos aparecem na etapa 2.</p>
+  <p class="lead">Escolha um ou vários arquivos (RIF em pedaços, quebra de bancos, extratos). O programa lê o nome (ex.: <code>056-PCPR-000677-20</code>) e pergunta se cria um caso novo ou acrescenta a um antigo. Se o nome for só o protocolo ou “extrato detalhado”, o caso fica <b>Caso 677</b>; se tiver um apelido (elon musk, casa mambore, gordo), fica <b>Caso 677 elon musk</b>.</p>
   <div class="cartao">
     <label class="soltar" id="imp-soltar">
-      <input type="file" id="imp-arquivo">
+      <input type="file" id="imp-arquivo" multiple>
       <span class="soltar-ico">⬆</span>
-      <strong>Clique para escolher o arquivo</strong>
-      <span class="nota">ou arraste para cá · CSV, Excel, ZIP do banco, PDF ou RIF</span>
+      <strong>Clique para escolher os arquivos</strong>
+      <span class="nota">um ou vários de uma vez · RIF, quebra de bancos, CSV, Excel, ZIP, PDF · ou arraste para cá</span>
     </label>
     <div class="linha-filtros">
       <label>Remessa (opcional) <select id="imp-remessa"><option value="">(sem remessa)</option></select></label>
-      <button id="btn-enviar" class="primario">Enviar arquivo</button>
+      <button id="btn-enviar" class="primario">Enviar arquivos</button>
     </div>
     <div id="imp-progresso"></div>
+    <div id="imp-fila"></div>
   </div>
   <div id="imp-previa"></div>
   <div id="imp-relatorio"></div>
@@ -138,7 +139,21 @@
 
 <section id="aba-grafo" class="aba">
   <h2>3. Grafo de transferências</h2>
-  <p class="lead">O mapa monta sozinho com as contas do extrato e quem enviou ou recebeu. Arraste as pessoas, as contas e as setas (como no Mercure e no i2); role o mouse para aproximar. As setas mostram a direção dos registros — não comprovam que um crédito financiou um débito.</p>
+  <p class="lead">O mapa monta sozinho. Escolha como organizar (pirâmide, circular, torre ou automático), arraste pessoas e contas, clique na seta para ver o valor. As setas são retas e mostram a direção dos registros — não comprovam que um crédito financiou um débito.</p>
+  <div class="linha-filtros grafo-org" id="grafo-org">
+    <span class="org-rotulo">Organizar</span>
+    <button type="button" class="org-btn" data-layout="piramide">Pirâmide</button>
+    <button type="button" class="org-btn" data-layout="circular">Circular</button>
+    <button type="button" class="org-btn" data-layout="torre">Torre</button>
+    <button type="button" class="org-btn" data-layout="automatico">Automático</button>
+    <label>Valores nas setas
+      <select id="gf-valores">
+        <option value="todas">todas</option>
+        <option value="principais">só as maiores</option>
+        <option value="ocultos">ocultar (clique na seta)</option>
+      </select>
+    </label>
+  </div>
   <details class="cartao avancado">
     <summary>Filtros do grafo (só se quiser recortar)</summary>
     <p class="nota">Independentes da aba Movimentações, a menos que você marque a opção. Abra uma lista e marque as caixas: o grafo atualiza na hora, e você pode marcar várias.</p>

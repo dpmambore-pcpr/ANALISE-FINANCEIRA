@@ -373,15 +373,29 @@ ol.passos .sub { margin: 8px 0 0; padding-left: 18px; color: var(--texto-suave);
 .grafo-viewport svg { width: 100%; height: 100%; display: block; touch-action: none; }
 .no-grafo { cursor: grab; }
 .no-grafo.arrastando { cursor: grabbing; }
-.aresta-hit { cursor: grab; pointer-events: stroke; }
-.aresta-alca {
-  fill: #e8d09a;
-  stroke: #0b1424;
-  stroke-width: 1.2;
-  cursor: grab;
-  opacity: .92;
+.aresta-hit { cursor: pointer; pointer-events: stroke; }
+.aresta.ativa { stroke: #e8d09a; opacity: 1; }
+ol.fila-arqs { margin: 8px 0 0; padding-left: 22px; }
+ol.fila-arqs li { margin: 4px 0; }
+ol.fila-arqs button { margin-left: 8px; }
+.grafo-org { margin: 10px 0 12px; }
+.grafo-org .org-rotulo { font-weight: 700; color: var(--navy2); margin-right: 4px; }
+.grafo-org .org-btn {
+  border: 1px solid var(--borda);
+  background: #fff;
+  color: var(--navy3);
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
 }
-.aresta-alca:hover { fill: #fff4c2; }
+.grafo-org .org-btn:hover { border-color: var(--ouro); }
+.grafo-org .org-btn.ativa {
+  background: var(--navy);
+  color: #fff;
+  box-shadow: 0 0 0 2px var(--ouro);
+}
+.grafo-detalhe.caixa-seta { border-color: rgba(201, 163, 90, .7); max-width: 460px; }
 .grafo-ferramentas {
   position: absolute; top: 12px; right: 12px; z-index: 2;
   display: flex; flex-direction: column; gap: 6px;

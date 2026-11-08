@@ -5,7 +5,9 @@ const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const estado = { caso: null, filtros: {}, facetas: [], fontes: [], geralSel: {}, acessosFiltros: {}, previa: null, fonteAtual: null,
-  gFiltros: {}, conversaId: null, grafoCtrl: null, grafoPos: {}, grafoCurva: {}, grafoOff: null };
+  gFiltros: {}, conversaId: null, grafoCtrl: null, grafoPos: {}, grafoOff: null, grafoDados: null,
+  grafoLayout: localStorage.getItem("grafoLayout") || "torre",
+  grafoValores: localStorage.getItem("grafoValores") || "todas" };
 
 function usuario() { return $("#usuario").value.trim(); }
 
@@ -215,7 +217,7 @@ async function enviarArquivo(arq, remessa) {
   return api("POST", `/api/casos/${exigirCaso()}/upload`, arq, { bruto: true, cabecalhos: { "X-Nome-Arquivo": encodeURIComponent(arq.name), "X-Remessa": remessa || "" } });
 }
 $("#imp-arquivo").addEventListener("change", () => {
-  if ($("#imp-arquivo").files[0]) $("#btn-enviar").click();
+  if ($("#imp-arquivo").files && $("#imp-arquivo").files.length) $("#btn-enviar").click();
 });
 function ligarZonaArquivo(zonaSel, inputSel) {
   const zona = $(zonaSel);
@@ -243,13 +245,39 @@ function htmlOpcaoCaso(c, name, checked) {
     <span><b>${esc(c.nome)}</b><br><span class="mini">${c.n_lancamentos || 0} lançamento(s)${extra}</span></span></label>`;
 }
 
-function perguntarDestinoArquivo(arq) {
+function listaArquivos(x) {
+  if (!x) return [];
+  if (typeof x.length === "number" && x[0] && x[0].name) return Array.from(x);
+  if (x.name) return [x];
+  return [];
+}
+function pareceArquivoRif(nome) {
+  const n = String(nome || "").toUpperCase();
+  return /COMUNICA|ENVOLVIDO|OCORRENCIA|\bRIF\b/.test(n);
+}
+function opcoesRif(extra) {
+  const o = Object.assign({}, extra || {});
+  if (estado.rifLoteId) o.rif_id = estado.rifLoteId;
+  return o;
+}
+function loteImportacao() {
+  return (estado.filaImportacao || []).length > 1;
+}
+function perguntarDestinoArquivo(arqs) {
+  const lista = listaArquivos(arqs);
   return new Promise(async (resolve) => {
     let feito = false;
     const terminar = (v) => { if (feito) return; feito = true; fecharModal(); resolve(v); };
     try {
       if (!usuario()) { alert("Informe seu nome no topo."); return terminar(null); }
-      const rec = await api("POST", "/api/casos/reconhecer", { nome: arq.name });
+      if (!lista.length) return terminar(null);
+      let rec = await api("POST", "/api/casos/reconhecer", { nome: lista[0].name });
+      for (const a of lista.slice(1)) {
+        if (rec.numero != null) break;
+        const r = await api("POST", "/api/casos/reconhecer", { nome: a.name });
+        if (r.numero != null) rec = r;
+      }
+      const arq = { name: rec.origem || lista[0].name };
       const existentes = rec.existentes || [];
       const todos = rec.todos || [];
       const temMatch = existentes.length > 0;
@@ -260,12 +288,14 @@ function perguntarDestinoArquivo(arq) {
         const rank = (c) => (porId[c.id] ? (porId[c.id].mesmo_apelido ? 0 : 1) : 2);
         return rank(a) - rank(b) || a.id - b.id;
       });
-      const lista = ordenados.map((c, i) => htmlOpcaoCaso(
+      const htmlCasos = ordenados.map((c, i) => htmlOpcaoCaso(
         Object.assign({}, c, { mesmo_apelido: !!(porId[c.id] && porId[c.id].mesmo_apelido) }),
         "imp-caso-id", i === 0
       )).join("") || '<p class="nota">Ainda não há caso antigo neste computador.</p>';
-      modal(`<h3>Onde guardar este arquivo?</h3>
-        <p>Arquivo: <b>${esc(arq.name)}</b></p>
+      const nomes = lista.map((a) => a.name);
+      const nomesMostra = nomes.length > 8 ? nomes.slice(0, 8).concat(["… +" + (nomes.length - 8)]) : nomes;
+      modal(`<h3>Onde guardar ${lista.length > 1 ? "estes arquivos" : "este arquivo"}?</h3>
+        <p>${lista.length > 1 ? `<b>${lista.length} arquivos:</b> ${nomesMostra.map((n) => esc(n)).join(", ")}` : `Arquivo: <b>${esc(arq.name)}</b>`}</p>
         <p>${rec.protocolo ? `Protocolo SIMBA <b>${esc(rec.protocolo)}</b> → ` : ""}${rec.numero != null ? `número <b>${esc(rec.numero)}</b>. ` : ""}Nome sugerido: <b>${esc(rec.nome_sugerido)}</b>${rec.inscricao ? ` (inscrição: ${esc(rec.inscricao)})` : rec.numero != null ? " (sem apelido no arquivo — extrato detalhado, RIF ou ofício ficam só como Caso " + esc(rec.numero) + ")" : ""}.</p>
         <div class="imp-dest">
           <label class="opcao${destPadrao === "novo" ? " marca" : ""}"><input type="radio" name="imp-dest" value="novo" ${destPadrao === "novo" ? "checked" : ""}>
@@ -273,7 +303,7 @@ function perguntarDestinoArquivo(arq) {
           <label class="opcao${destPadrao === "existente" ? " marca" : ""}"><input type="radio" name="imp-dest" value="existente" ${destPadrao === "existente" ? "checked" : ""} ${todos.length ? "" : "disabled"}>
             <span>Adicionar a um caso já existente${temMatch ? " (mesmo número SIMBA)" : ""}</span></label>
         </div>
-        <div id="imp-lista-casos" class="lista-casos-imp" style="${destPadrao === "existente" ? "" : "display:none"}">${lista}</div>
+        <div id="imp-lista-casos" class="lista-casos-imp" style="${destPadrao === "existente" ? "" : "display:none"}">${htmlCasos}</div>
         <button type="button" class="primario" id="imp-confirmar">Continuar</button>
         <button type="button" id="imp-cancelar">Cancelar</button>`, true);
       const pintar = () => {
@@ -308,32 +338,73 @@ function perguntarDestinoArquivo(arq) {
   });
 }
 
+function pintarFilaImportacao() {
+  const el = $("#imp-fila");
+  if (!el) return;
+  const fs = estado.filaImportacao || [];
+  if (fs.length < 2) { el.innerHTML = ""; return; }
+  el.innerHTML = `<div class="cartao"><h3>${fs.length} arquivos neste envio</h3>
+    <p class="nota">RIF e quebra de bancos: cada arquivo é preparado na sequência. Clique em um nome para abrir.</p>
+    <ol class="fila-arqs">${fs.map((f) => `<li>${esc(f.nome)} — ${esc(f.estado)}${f.erro ? ": " + esc(f.erro) : ""}${f.id ? ` <button type="button" data-prep-fila="${f.id}">Abrir</button>` : ""}</li>`).join("")}</ol></div>`;
+  $$("[data-prep-fila]", el).forEach((b) => { b.onclick = () => prepararImportacao(+b.dataset.prepFila); });
+}
+function marcarFilaImportacao(fonteId, estadoFila, extra) {
+  const f = (estado.filaImportacao || []).find((x) => x.id === fonteId);
+  if (f) Object.assign(f, { estado: estadoFila }, extra || {});
+  pintarFilaImportacao();
+}
+function proximoFilaImportacao(atualId) {
+  const fs = estado.filaImportacao || [];
+  const i = fs.findIndex((x) => x.id === atualId);
+  return fs.slice(i + 1).find((x) => x.id && (x.estado === "pendente" || x.estado === "duplicada"))
+    || fs.find((x) => x.id && x.id !== atualId && (x.estado === "pendente" || x.estado === "duplicada"));
+}
 $("#btn-enviar").onclick = async () => {
-  const arq = $("#imp-arquivo").files[0];
-  if (!arq) return alert("Escolha um arquivo.");
-  const casoId = await perguntarDestinoArquivo(arq);
+  const lista = listaArquivos($("#imp-arquivo").files);
+  if (!lista.length) return alert("Escolha um ou vários arquivos (RIF, quebra de bancos, extrato).");
+  const casoId = await perguntarDestinoArquivo(lista);
   if (!casoId) return;
   escolherCaso(casoId);
   await carregarCasos();
   $("#imp-relatorio").innerHTML = "";
-  $("#imp-progresso").innerHTML = '<span class="nota">Enviando e calculando SHA-256...</span>';
-  try {
-    const f = await enviarArquivo(arq, $("#imp-remessa").value);
-    $("#imp-progresso").innerHTML = `<div class="ok">Original guardado: ${esc(f.nome_original)} - SHA-256 ${esc(f.sha256)}</div>`;
-    await prepararImportacao(f.id);
-  } catch (e) {
-    if (e.dados && e.dados.fonte) { $("#imp-progresso").innerHTML = `<div class="aviso">${esc(e.message)}</div>`; await prepararImportacao(e.dados.fonte.id); }
-    else msg("#imp-progresso", e.message);
+  estado.rifLoteId = null;
+  const fontes = [];
+  const remessa = $("#imp-remessa").value;
+  for (let i = 0; i < lista.length; i++) {
+    const arq = lista[i];
+    $("#imp-progresso").innerHTML = `<span class="nota">Enviando ${i + 1} de ${lista.length}: ${esc(arq.name)}…</span>`;
+    try {
+      const f = await enviarArquivo(arq, remessa);
+      fontes.push({ id: f.id, nome: f.nome_original || arq.name, estado: "pendente" });
+    } catch (e) {
+      if (e.dados && e.dados.fonte) fontes.push({ id: e.dados.fonte.id, nome: arq.name, estado: "duplicada" });
+      else fontes.push({ nome: arq.name, estado: "erro", erro: e.message });
+    }
   }
+  estado.filaImportacao = fontes;
+  pintarFilaImportacao();
+  const ok = fontes.filter((f) => f.id);
+  $("#imp-progresso").innerHTML = `<div class="ok">${ok.length} de ${lista.length} arquivo(s) guardado(s) no caso. SHA-256 calculado.</div>`;
+  if (ok.length) await prepararImportacao(ok[0].id);
 };
 
 async function prepararImportacao(fonteId, aba, linhaCab) {
   abrirAba("importar");
   estado.fonteAtual = fonteId;
+  marcarFilaImportacao(fonteId, "aberto");
   const p = await api("POST", `/api/fontes/${fonteId}/previa`, { aba, linha_cabecalho: linhaCab });
   estado.previa = p;
   const alvo = $("#imp-previa");
-  if (p.tipo_arquivo === "zip") return mostrarZip(fonteId, p.conteudo, alvo);
+  if (p.tipo_arquivo === "zip") {
+    mostrarZip(fonteId, p.conteudo, alvo);
+    if (loteImportacao() && p.conteudo && p.conteudo.rif) {
+      executarImportacao(fonteId, "rif", null, opcoesRif({
+        numero_rif: ($("#zip-rif-num") || {}).value,
+        coluna_valor: ($("#zip-rif-valor") || {}).value || null,
+      }));
+    }
+    return;
+  }
   if (p.tipo_arquivo === "pdf" && p.extrato_detalhado) {
     const ed = p.extrato_detalhado;
     alvo.innerHTML = `<div class="cartao"><h3>PDF reconhecido: EXTRATO DETALHADO</h3>
@@ -346,6 +417,7 @@ async function prepararImportacao(fonteId, aba, linhaCab) {
       <button id="btn-imp-pdf">Somente extrair o texto (Pesquisa geral)</button></div>`;
     $("#btn-imp-pdf-ext").onclick = () => executarImportacao(fonteId, "pdf_extrato", null, {});
     $("#btn-imp-pdf").onclick = () => executarImportacao(fonteId, "pdf_texto", null, { papel: $("#pdf-papel").value });
+    if (loteImportacao()) executarImportacao(fonteId, "pdf_extrato", null, {});
     return;
   }
   if (p.tipo_arquivo === "pdf") {
@@ -364,8 +436,22 @@ async function prepararImportacao(fonteId, aba, linhaCab) {
     };
     return;
   }
-  if (!p.cabecalho) { alvo.innerHTML = '<div class="erro">Tipo de arquivo não suportado para importação. O original continua guardado como fonte.</div>'; return; }
+  if (!p.cabecalho) {
+    alvo.innerHTML = '<div class="erro">Tipo de arquivo não suportado para importação. O original continua guardado como fonte.</div>';
+    marcarFilaImportacao(fonteId, "erro", { erro: "tipo não suportado" });
+    const prox = proximoFilaImportacao(fonteId);
+    if (prox) await prepararImportacao(prox.id);
+    return;
+  }
   renderMapeamento(fonteId, p, alvo);
+  const nomeFonte = ((estado.filaImportacao || []).find((f) => f.id === fonteId) || {}).nome || "";
+  if (loteImportacao() && (p.tipo_sugerido === "rif" || pareceArquivoRif(nomeFonte))) {
+    executarImportacao(fonteId, "rif", null, opcoesRif({}));
+    return;
+  }
+  if (loteImportacao() && p.perfil && p.tipo_sugerido === "extrato" && $("#o-conf") && $("#o-conf").checked && $("#m-importar")) {
+    $("#m-importar").click();
+  }
 }
 
 function mostrarZip(fonteId, c, alvo) {
@@ -380,7 +466,7 @@ function mostrarZip(fonteId, c, alvo) {
     `<tr><td>${esc(i.nome)}</td><td>${esc(i.tipo)}</td><td class="num">${i.tamanho}</td><td><button data-membro="${esc(i.nome)}">Preparar para importar</button></td></tr>`).join("")}</table></div>`;
   alvo.innerHTML = html;
   if ($("#btn-zip-simba")) $("#btn-zip-simba").onclick = () => executarImportacao(fonteId, "simba", null, { confirmo_leiaute_in636: $("#zip-in636")?.checked, permitir_extrato_sem_od: $("#zip-semod").checked });
-  if ($("#btn-zip-rif")) $("#btn-zip-rif").onclick = () => executarImportacao(fonteId, "rif", null, { numero_rif: $("#zip-rif-num").value, coluna_valor: $("#zip-rif-valor").value || null });
+  if ($("#btn-zip-rif")) $("#btn-zip-rif").onclick = () => executarImportacao(fonteId, "rif", null, opcoesRif({ numero_rif: $("#zip-rif-num").value, coluna_valor: $("#zip-rif-valor").value || null }));
   $$("button[data-membro]", alvo).forEach((b) => (b.onclick = async () => {
     try { const f = await api("POST", `/api/fontes/${fonteId}/extrair`, { membro: b.dataset.membro }); await prepararImportacao(f.id); }
     catch (e) { alert(e.message); }
@@ -405,7 +491,7 @@ function renderMapeamento(fonteId, p, alvo) {
       $("#m-opcoes").innerHTML = `<p>RIF: as colunas são reconhecidas pelo nome (idComunicacao, cpfCnpjEnvolvido...). Comunicações não viram lançamentos.</p>
         <input id="rif-num" placeholder="nº do RIF"> <label>Coluna de valor (se conferida) <select id="rif-valor"><option value="">(nenhuma)</option>${p.cabecalho.map((h) => `<option>${esc(h)}</option>`).join("")}</select></label>
         <button class="primario" id="m-importar">Importar RIF</button>`;
-      $("#m-importar").onclick = () => executarImportacao(fonteId, "rif", null, { numero_rif: $("#rif-num").value, coluna_valor: $("#rif-valor").value || null });
+      $("#m-importar").onclick = () => executarImportacao(fonteId, "rif", null, opcoesRif({ numero_rif: $("#rif-num").value, coluna_valor: $("#rif-valor").value || null }));
       return;
     }
     const campos = p.campos[t];
@@ -456,8 +542,16 @@ async function executarImportacao(fonteId, adaptador, mapeamento, opcoes) {
   try {
     const r = await api("POST", `/api/fontes/${fonteId}/importar`, { adaptador, mapeamento, opcoes });
     const rel = await esperarTarefa(r.tarefa, el);
-    el.innerHTML = htmlRelatorioImportacao(rel) + htmlProximosPassos(rel);
+    marcarFilaImportacao(fonteId, "ok");
     estado.facetas = [];
+    if (rel.rif_id) estado.rifLoteId = rel.rif_id;
+    const prox = proximoFilaImportacao(fonteId);
+    if (prox) {
+      el.innerHTML = htmlRelatorioImportacao(rel) + `<div class="ok">Arquivo importado. Abrindo o próximo (${esc(prox.nome)})…</div>`;
+      await prepararImportacao(prox.id);
+      return;
+    }
+    el.innerHTML = htmlRelatorioImportacao(rel) + htmlProximosPassos(rel);
     if ((rel.aceitos || 0) > 0) {
       try {
         await pesquisar();
@@ -465,16 +559,34 @@ async function executarImportacao(fonteId, adaptador, mapeamento, opcoes) {
         const t = $("#totais");
         if (t) t.insertAdjacentHTML("afterbegin", `<div class="ok">Arquivo importado: <b>${rel.aceitos}</b> lançamento(s) já estão na lista abaixo. O grafo e a análise montam sozinhos nas etapas 3 e 4.</div>`);
       } catch (e) { console.error(e); }
+    } else if (rel.rif_id) {
+      try { await carregarRif(); abrirAba("rif"); } catch (e) { console.error(e); }
     }
-  } catch (e) { msg(el, e.message); }
+  } catch (e) {
+    marcarFilaImportacao(fonteId, "erro", { erro: e.message });
+    msg(el, e.message);
+    const prox = proximoFilaImportacao(fonteId);
+    if (prox) {
+      el.insertAdjacentHTML("beforeend", `<p class="nota">Abrindo o próximo arquivo da lista…</p>`);
+      await prepararImportacao(prox.id);
+    }
+  }
 }
 function htmlProximosPassos(rel) {
   const n = rel.aceitos || 0;
+  const temRif = !!rel.rif_id;
+  const txt = n ? n + " lançamento(s) já estão no caso."
+    : temRif ? "Os arquivos do RIF (comunicações, envolvidos, ocorrências) foram reunidos neste caso."
+    : "O arquivo foi guardado. Se for PDF de texto, use a Pesquisa geral ou a Análise depois de marcar o papel.";
+  const botoes = n
+    ? '<button type="button" class="primario" data-aba-ir="pesquisar">Ver movimentações</button><button type="button" data-aba-ir="grafo">Ver grafo</button><button type="button" data-aba-ir="ia">Gerar análise</button>'
+      + (temRif ? '<button type="button" data-aba-ir="rif">Ver RIF</button>' : "")
+    : temRif
+      ? '<button type="button" class="primario" data-aba-ir="rif">Ver RIF</button><button type="button" data-aba-ir="fontes">Ver fontes</button>'
+      : '<button type="button" class="primario" data-aba-ir="fontes">Ver fontes</button>';
   return `<div class="cartao"><h3>Pronto</h3>
-    <p>${n ? n + " lançamento(s) já estão no caso." : "O arquivo foi guardado. Se for PDF de texto, use a Pesquisa geral ou a Análise depois de marcar o papel."}</p>
-    <div class="proximos">
-      ${n ? '<button type="button" class="primario" data-aba-ir="pesquisar">Ver movimentações</button><button type="button" data-aba-ir="grafo">Ver grafo</button><button type="button" data-aba-ir="ia">Gerar análise</button>' : '<button type="button" class="primario" data-aba-ir="fontes">Ver fontes</button>'}
-    </div></div>`;
+    <p>${txt}</p>
+    <div class="proximos">${botoes}</div></div>`;
 }
 
 function htmlRelatorioImportacao(rel) {
@@ -484,7 +596,11 @@ function htmlRelatorioImportacao(rel) {
     <div>Rejeitados<b>${rel.rejeitados}</b></div><div>Duplicatas prováveis<b>${rel.duplicatas}</b></div>
     <div>Créditos aceitos<b>${brl(rel.totais_aceitos.C)}</b></div><div>Débitos aceitos<b>${brl(rel.totais_aceitos.D)}</b></div>
     ${rel.acessos ? `<div>Registros de acesso<b>${rel.acessos}</b></div>` : ""}${rel.titulares ? `<div>Cadastros/titulares<b>${rel.titulares}</b></div>` : ""}
-    ${rel.paginas ? `<div>Páginas de PDF<b>${rel.paginas}</b></div>` : ""}</div>`;
+    ${rel.paginas ? `<div>Páginas de PDF<b>${rel.paginas}</b></div>` : ""}
+    ${rel.rif_id ? `<div>RIF<b>#${rel.rif_id}</b></div>` : ""}
+    ${rel.rif_comunicacoes ? `<div>Comunicações RIF<b>${rel.rif_comunicacoes}</b></div>` : ""}
+    ${rel.rif_envolvidos ? `<div>Envolvidos RIF<b>${rel.rif_envolvidos}</b></div>` : ""}
+    ${rel.rif_ocorrencias ? `<div>Ocorrências RIF<b>${rel.rif_ocorrencias}</b></div>` : ""}</div>`;
   const pc = rel.parcelas || {};
   if (pc.conferidas || pc.divergentes || pc.incompletas) h += `<p class="nota">Parcelas de origem/destino: ${pc.conferidas || 0} conferidas, ${pc.divergentes || 0} divergentes, ${pc.incompletas || 0} sem valor por parcela, ${pc.unica || 0} contraparte única.</p>`;
   if (rel.controle) h += `<div class="${rel.controle.ok ? "ok" : "erro"}"><b>Valores de controle: ${rel.controle.ok ? "CONFEREM" : "DIVERGEM"}</b>${rel.controle.itens.map((i) => `<br>${esc(i.item)}: esperado ${esc(i.esperado)}, obtido ${esc(i.obtido)} ${i.ok ? "✓" : "✗"}`).join("")}</div>`;
@@ -708,6 +824,30 @@ $("#btn-grafo-limpar").onclick = () => {
   if ($(s)) $(s).addEventListener("change", () => agendarGrafo());
 });
 $("#g-usar-pesquisa").addEventListener("change", () => agendarGrafo());
+function geomArestaReta(a, id, rai) {
+  const p = id[a.de], q = id[a.para];
+  const dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy) || 1;
+  const ux = dx / d, uy = dy / d, px = -uy, py = ux, off = a.off || 0;
+  const ox = px * off, oy = py * off;
+  const r1 = rai[p.id] + 1.5, r2 = rai[q.id] + 8;
+  return {
+    x1: p.x + ux * r1 + ox, y1: p.y + uy * r1 + oy,
+    x2: q.x - ux * r2 + ox, y2: q.y - uy * r2 + oy,
+    mx: (p.x + q.x) / 2 + ox + px * 12,
+    my: (p.y + q.y) / 2 + oy + py * 12,
+  };
+}
+function atribuirOffsetsArestas(ars) {
+  const grupos = {};
+  for (const a of ars) {
+    const k = a.de < a.para ? a.de + "\t" + a.para : a.para + "\t" + a.de;
+    (grupos[k] = grupos[k] || []).push(a);
+  }
+  const GAP = 16;
+  Object.values(grupos).forEach((g) => {
+    g.forEach((a, i) => { a.off = g.length === 1 ? 0 : (i - (g.length - 1) / 2) * GAP; });
+  });
+}
 function ligarGrafoInterativo(svg, mundo) {
   const cena = svg.querySelector("#grafo-cena");
   let panX = 0, panY = 0, escala = 1;
@@ -726,27 +866,15 @@ function ligarGrafoInterativo(svg, mundo) {
     const ns = Math.min(8, Math.max(0.12, escala * fator));
     panX = mx - (mx - panX) * ns / escala; panY = my - (my - panY) * ns / escala; escala = ns; aplicarPan();
   };
-  const geom = (a) => {
-    const p = mundo.id[a.de], q = mundo.id[a.para];
-    const dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy) || 1;
-    const r1 = mundo.rai[p.id] + 1.5, r2 = mundo.rai[q.id] + 8;
-    if (a.cx == null) {
-      a.cx = (p.x + q.x) / 2 + (-dy / d) * 16;
-      a.cy = (p.y + q.y) / 2 + (dx / d) * 16;
-    }
-    return { x1: p.x + dx / d * r1, y1: p.y + dy / d * r1, x2: q.x - dx / d * r2, y2: q.y - dy / d * r2, cx: a.cx, cy: a.cy };
-  };
-  const dPath = (t) => `M ${t.x1} ${t.y1} Q ${t.cx} ${t.cy} ${t.x2} ${t.y2}`;
+  const dPath = (t) => `M ${t.x1} ${t.y1} L ${t.x2} ${t.y2}`;
   const redesenharAresta = (a) => {
-    const t = geom(a), k = a.i;
+    const t = geomArestaReta(a, mundo.id, mundo.rai), k = a.i;
     const path = svg.querySelector(`path.aresta[data-i="${k}"]`);
     const hit = svg.querySelector(`path.aresta-hit[data-i="${k}"]`);
-    const alca = svg.querySelector(`circle.aresta-alca[data-i="${k}"]`);
-    const lab = svg.querySelector(`text.aresta-rotulo[data-i="${k}"]`);
+    const lab = svg.querySelector(`g.aresta-rotulo[data-i="${k}"]`);
     if (path) path.setAttribute("d", dPath(t));
     if (hit) hit.setAttribute("d", dPath(t));
-    if (alca) { alca.setAttribute("cx", t.cx); alca.setAttribute("cy", t.cy); }
-    if (lab) { lab.setAttribute("x", (t.cx * 2 + t.x1 + t.x2) / 4); lab.setAttribute("y", (t.cy * 2 + t.y1 + t.y2) / 4); }
+    if (lab) lab.setAttribute("transform", `translate(${t.mx} ${t.my})`);
   };
   const redesenharNo = (n) => {
     const g = svg.querySelector(`g.no-grafo[data-i="${n.i}"]`);
@@ -778,10 +906,6 @@ function ligarGrafoInterativo(svg, mundo) {
       gesto.no.x += dx; gesto.no.y += dy;
       estado.grafoPos[gesto.no.id] = { x: gesto.no.x, y: gesto.no.y };
       redesenharNo(gesto.no);
-    } else if (gesto.tipo === "aresta") {
-      gesto.aresta.cx += dx; gesto.aresta.cy += dy;
-      estado.grafoCurva[gesto.aresta.de + "\t" + gesto.aresta.para] = { cx: gesto.aresta.cx, cy: gesto.aresta.cy };
-      redesenharAresta(gesto.aresta);
     }
     last = { x: pt.x, y: pt.y, vx: vista(e).x, vy: vista(e).y };
   };
@@ -793,19 +917,12 @@ function ligarGrafoInterativo(svg, mundo) {
   svg.addEventListener("wheel", (e) => { e.preventDefault(); const v = vista(e); zoomEm(v.x, v.y, e.deltaY < 0 ? 1.16 : 1 / 1.16); }, { passive: false });
   svg.addEventListener("mousedown", (e) => {
     if (e.button !== 0) return;
-    const alca = e.target.closest(".aresta-alca, .aresta-hit");
+    if (e.target.closest(".aresta-hit, .aresta, .aresta-rotulo")) return;
     const noEl = e.target.closest(".no-grafo");
     const pt = cenaPt(e), v = vista(e);
     last = { x: pt.x, y: pt.y, vx: v.x, vy: v.y };
     arrastou = false;
-    if (alca) {
-      const a = mundo.ars[+alca.dataset.i];
-      if (!a) return;
-      gesto = { tipo: "aresta", aresta: a, ox: pt.x, oy: pt.y, el: alca };
-      svg.style.cursor = "grabbing";
-      e.preventDefault();
-      e.stopPropagation();
-    } else if (noEl) {
+    if (noEl) {
       const n = mundo.nos[+noEl.dataset.i];
       if (!n) return;
       gesto = { tipo: "no", no: n, ox: pt.x, oy: pt.y, el: noEl };
@@ -844,23 +961,141 @@ function raioNo(n, maxVol) {
   if (n.tipo === "nao_distribuido") return 12;
   return 11 + 12 * Math.sqrt((n.volume || 0) / Math.max(1, maxVol));
 }
-function posicionarNos(nos, W, H) {
+function marcarOrgGrafo() {
+  $$("#grafo-org .org-btn").forEach((b) => b.classList.toggle("ativa", b.dataset.layout === estado.grafoLayout));
+  if ($("#gf-valores")) $("#gf-valores").value = estado.grafoValores || "todas";
+}
+function afastarNos(nos, rai, W, H, vezes) {
+  const pad = 90;
+  for (let it = 0; it < vezes; it++) {
+    for (const a of nos) for (const b of nos) {
+      if (a === b) continue;
+      const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy) || 0.1;
+      const minD = (rai[a.id] || 16) + (rai[b.id] || 16) + 40;
+      if (d < minD) {
+        const f = (minD - d) * 0.45;
+        a.x += (dx / d) * f; a.y += (dy / d) * f;
+      }
+    }
+    for (const n of nos) {
+      n.x = Math.max(pad, Math.min(W - pad, n.x));
+      n.y = Math.max(pad, Math.min(H - pad, n.y));
+    }
+  }
+}
+function layoutCircular(nos, W, H) {
   const contas = nos.filter((n) => n.tipo === "conta");
   const outros = nos.filter((n) => n.tipo !== "conta").sort((a, b) => (b.volume || 0) - (a.volume || 0));
-  const cx = W * 0.56, cy = H * 0.50;
+  const cx = W * 0.5, cy = H * 0.5;
   contas.forEach((n, i) => {
     const a = (i / Math.max(contas.length, 1)) * Math.PI * 2 - Math.PI / 2;
-    n.x = cx + Math.cos(a) * Math.min(280, W * 0.20);
-    n.y = cy + Math.sin(a) * Math.min(200, H * 0.20);
-    n.vx = 0; n.vy = 0;
+    n.x = cx + Math.cos(a) * Math.min(240, W * 0.16);
+    n.y = cy + Math.sin(a) * Math.min(170, H * 0.16);
   });
   outros.forEach((n, i) => {
-    const a = (i / Math.max(outros.length, 1)) * Math.PI * 2 - Math.PI / 2 + 0.2;
-    n.x = cx + Math.cos(a) * Math.min(520, W * 0.40);
-    n.y = cy + Math.sin(a) * Math.min(360, H * 0.38);
-    n.vx = 0; n.vy = 0;
+    const a = (i / Math.max(outros.length, 1)) * Math.PI * 2 - Math.PI / 2;
+    n.x = cx + Math.cos(a) * Math.min(520, W * 0.38);
+    n.y = cy + Math.sin(a) * Math.min(360, H * 0.36);
   });
   if (nos.length === 1) { nos[0].x = cx; nos[0].y = cy; }
+}
+function layoutPiramide(nos, W, H) {
+  const contas = nos.filter((n) => n.tipo === "conta").sort((a, b) => (b.volume || 0) - (a.volume || 0));
+  const outros = nos.filter((n) => n.tipo !== "conta").sort((a, b) => (b.volume || 0) - (a.volume || 0));
+  const rows = [];
+  if (contas.length) rows.push(contas);
+  let resto = outros.slice();
+  let largura = Math.max(2, contas.length + 1);
+  while (resto.length) {
+    rows.push(resto.splice(0, largura));
+    largura += 2;
+  }
+  if (!rows.length) return;
+  const top = 110, bot = H - 110;
+  rows.forEach((row, ri) => {
+    const y = rows.length === 1 ? H / 2 : top + (bot - top) * ri / Math.max(rows.length - 1, 1);
+    const span = Math.min(W - 180, 160 + ri * 200);
+    row.forEach((n, i) => {
+      n.x = W / 2 + (i - (row.length - 1) / 2) * (span / Math.max(row.length, 1));
+      n.y = y;
+    });
+  });
+}
+function layoutTorre(nos, ars, W, H) {
+  const contas = nos.filter((n) => n.tipo === "conta").sort((a, b) => (b.volume || 0) - (a.volume || 0));
+  const outros = nos.filter((n) => n.tipo !== "conta");
+  const idsConta = new Set(contas.map((n) => n.id));
+  const esq = [], dir = [];
+  for (const n of outros) {
+    let entra = 0, sai = 0;
+    for (const e of ars) {
+      if (e.de === n.id && idsConta.has(e.para)) entra += e.valor || 0;
+      if (e.para === n.id && idsConta.has(e.de)) sai += e.valor || 0;
+    }
+    if (entra >= sai) esq.push(n); else dir.push(n);
+  }
+  esq.sort((a, b) => (b.volume || 0) - (a.volume || 0));
+  dir.sort((a, b) => (b.volume || 0) - (a.volume || 0));
+  const top = 100, bot = H - 100;
+  const coluna = (lista, x) => {
+    lista.forEach((n, i) => {
+      n.x = x;
+      n.y = lista.length === 1 ? H * 0.5 : top + (bot - top) * i / Math.max(lista.length - 1, 1);
+    });
+  };
+  if (!contas.length) {
+    layoutCircular(nos, W, H);
+    return;
+  }
+  contas.forEach((n, i) => {
+    n.x = W * 0.5;
+    n.y = contas.length === 1 ? H * 0.5 : top + (bot - top) * i / Math.max(contas.length - 1, 1);
+  });
+  coluna(esq, W * 0.18);
+  coluna(dir, W * 0.82);
+}
+function layoutAutomatico(nos, ars, rai, W, H) {
+  layoutCircular(nos, W, H);
+  for (const n of nos) { n.vx = 0; n.vy = 0; }
+  const id = Object.fromEntries(nos.map((n) => [n.id, n]));
+  for (let it = 0; it < 220; it++) {
+    for (const a of nos) for (const b of nos) {
+      if (a === b) continue;
+      const dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy + 0.01;
+      const d = Math.sqrt(d2);
+      const minD = (rai[a.id] || 16) + (rai[b.id] || 16) + 64;
+      const f = d < minD ? (minD - d) * 0.22 : 6200 / d2;
+      a.vx += (dx / d) * f; a.vy += (dy / d) * f;
+    }
+    for (const e of ars) {
+      const a = id[e.de], b = id[e.para];
+      if (!a || !b) continue;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      a.vx += dx * 0.0025; a.vy += dy * 0.0025; b.vx -= dx * 0.0025; b.vy -= dy * 0.0025;
+    }
+    for (const n of nos) {
+      n.vx += (W * 0.5 - n.x) * 0.0006; n.vy += (H * 0.5 - n.y) * 0.0006;
+      const pad = 110;
+      n.x = Math.max(pad, Math.min(W - pad, n.x + n.vx));
+      n.y = Math.max(pad, Math.min(H - pad, n.y + n.vy));
+      n.vx *= 0.55; n.vy *= 0.55;
+    }
+  }
+}
+function layoutGrafo(nos, ars, rai, W, H, modo) {
+  nos.forEach((n) => { n.vx = 0; n.vy = 0; });
+  if (modo === "piramide") layoutPiramide(nos, W, H);
+  else if (modo === "circular") layoutCircular(nos, W, H);
+  else if (modo === "torre") layoutTorre(nos, ars, W, H);
+  else layoutAutomatico(nos, ars, rai, W, H);
+  if (modo !== "automatico") afastarNos(nos, rai, W, H, 50);
+}
+function htmlRotuloAresta(a, t) {
+  const txt = a.valor_fmt || "";
+  const w = Math.max(54, txt.length * 6.5 + 12);
+  return `<g class="aresta-rotulo" data-i="${a.i}" transform="translate(${t.mx} ${t.my})" style="pointer-events:none">
+    <rect x="${-w / 2}" y="-10" width="${w}" height="18" rx="4" fill="#0b1424" fill-opacity=".88" stroke="#c9a35a" stroke-opacity=".4"></rect>
+    <text x="0" y="3" text-anchor="middle" font-size="11" fill="#f0e2b6" font-family="Segoe UI, Arial">${esc(txt)}</text></g>`;
 }
 async function gerarGrafo() {
   const area = $("#grafo-area");
@@ -888,38 +1123,25 @@ async function gerarGrafo() {
       "Importe um extrato na etapa 1. Contas e quem enviou ou recebeu aparecem aqui automaticamente.", "importar");
     return;
   }
+  estado.grafoDados = g;
+  desenharGrafo(g);
+}
+function desenharGrafo(g) {
+  const area = $("#grafo-area");
+  if (!g || !g.nos.length) return;
+  marcarOrgGrafo();
   const W = 1600, H = 980;
   const nos = g.nos.map((n, i) => Object.assign({ i }, n));
   const maxVol = Math.max(1, ...nos.map((n) => n.volume || 0));
-  posicionarNos(nos, W, H);
   const id = Object.fromEntries(nos.map((n) => [n.id, n]));
   const ars = g.arestas.filter((a) => id[a.de] && id[a.para]).map((a, i) => Object.assign({ i }, a));
   const rai = Object.fromEntries(nos.map((n) => [n.id, raioNo(n, maxVol)]));
-  for (let it = 0; it < 280; it++) {
-    for (const a of nos) for (const b of nos) {
-      if (a === b) continue;
-      const dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy + 0.01;
-      const d = Math.sqrt(d2);
-      const minD = rai[a.id] + rai[b.id] + 64;
-      const f = d < minD ? (minD - d) * 0.22 : 6200 / d2;
-      a.vx += (dx / d) * f; a.vy += (dy / d) * f;
-    }
-    for (const e of ars) {
-      const a = id[e.de], b = id[e.para], dx = b.x - a.x, dy = b.y - a.y;
-      a.vx += dx * 0.003; a.vy += dy * 0.003; b.vx -= dx * 0.003; b.vy -= dy * 0.003;
-    }
-    for (const n of nos) {
-      n.vx += (W * 0.56 - n.x) * 0.0007; n.vy += (H * 0.5 - n.y) * 0.0007;
-      const pad = 110;
-      n.x = Math.max(pad, Math.min(W - pad, n.x + n.vx));
-      n.y = Math.max(pad, Math.min(H - pad, n.y + n.vy));
-      n.vx *= 0.55; n.vy *= 0.55;
-    }
-  }
+  layoutGrafo(nos, ars, rai, W, H, estado.grafoLayout || "torre");
   nos.forEach((n) => {
     const p = estado.grafoPos[n.id];
     if (p) { n.x = p.x; n.y = p.y; }
   });
+  atribuirOffsetsArestas(ars);
   const maxA = Math.max(1, ...ars.map((a) => a.valor || 0));
   const corNo = { conta: "#e0b14a", contraparte: "#3ecfbf", nao_distribuido: "#8b95a7" };
   const defs = `<defs>
@@ -928,32 +1150,19 @@ async function gerarGrafo() {
     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
   </defs>`;
   let svg = `<svg id="svg-grafo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${defs}<g id="grafo-cena">`;
-  const geomA = (a) => {
-    const p = id[a.de], q = id[a.para];
-    const dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy) || 1;
-    const saved = estado.grafoCurva[a.de + "\t" + a.para];
-    if (saved) { a.cx = saved.cx; a.cy = saved.cy; }
-    else if (a.cx == null) {
-      a.cx = (p.x + q.x) / 2 + (-dy / d) * 16;
-      a.cy = (p.y + q.y) / 2 + (dx / d) * 16;
-    }
-    return { x1: p.x + dx / d * (rai[p.id] + 1.5), y1: p.y + dy / d * (rai[p.id] + 1.5),
-      x2: q.x - dx / d * (rai[q.id] + 8), y2: q.y - dy / d * (rai[q.id] + 8), cx: a.cx, cy: a.cy };
-  };
   for (const a of ars) {
-    const t = geomA(a);
+    const t = geomArestaReta(a, id, rai);
     const w = 1.15 + 2.8 * (a.valor || 0) / maxA;
     const op = 0.5 + 0.4 * (a.valor || 0) / maxA;
-    const d = `M ${t.x1} ${t.y1} Q ${t.cx} ${t.cy} ${t.x2} ${t.y2}`;
-    svg += `<path class="aresta-hit" data-i="${a.i}" d="${d}" fill="none" stroke="transparent" stroke-width="16"></path>`;
-    svg += `<path class="aresta" data-i="${a.i}" d="${d}" fill="none" stroke="${a.nd ? "#7a8494" : "#9fb4d1"}" stroke-width="${w}" stroke-dasharray="${a.nd ? "5,4" : ""}" opacity="${op}" marker-end="url(#${a.nd ? "seta-nd" : "seta"})"><title>${esc(a.valor_fmt)} em ${a.n} lançamento(s)</title></path>`;
-    svg += `<circle class="aresta-alca" data-i="${a.i}" cx="${t.cx}" cy="${t.cy}" r="5"></circle>`;
+    const d = `M ${t.x1} ${t.y1} L ${t.x2} ${t.y2}`;
+    svg += `<path class="aresta-hit" data-i="${a.i}" d="${d}" fill="none" stroke="transparent" stroke-width="18"></path>`;
+    svg += `<path class="aresta" data-i="${a.i}" d="${d}" fill="none" stroke="${a.nd ? "#7a8494" : "#9fb4d1"}" stroke-width="${w}" stroke-dasharray="${a.nd ? "5,4" : ""}" opacity="${op}" marker-end="url(#${a.nd ? "seta-nd" : "seta"})"><title>${esc(a.valor_fmt)} em ${a.n} lançamento(s) — clique para o detalhe</title></path>`;
   }
-  ars.slice().sort((a, b) => (b.valor || 0) - (a.valor || 0)).slice(0, 14).forEach((a) => {
-    if (a.nd) return;
-    const t = geomA(a);
-    svg += `<text class="aresta-rotulo" data-i="${a.i}" x="${(t.cx * 2 + t.x1 + t.x2) / 4}" y="${(t.cy * 2 + t.y1 + t.y2) / 4}" text-anchor="middle" font-size="11" fill="#f0e2b6" font-family="Segoe UI, Arial">${esc(a.valor_fmt)}</text>`;
-  });
+  const modoVal = estado.grafoValores || "todas";
+  let rotular = [];
+  if (modoVal === "todas") rotular = ars.filter((a) => !a.nd);
+  else if (modoVal === "principais") rotular = ars.filter((a) => !a.nd).slice().sort((a, b) => (b.valor || 0) - (a.valor || 0)).slice(0, 14);
+  rotular.forEach((a) => { svg += htmlRotuloAresta(a, geomArestaReta(a, id, rai)); });
   for (const l of g.ligacoes) {
     const p = id[l.de], q = id[l.para];
     if (!p || !q) continue;
@@ -967,17 +1176,18 @@ async function gerarGrafo() {
       <text x="${n.x}" y="${n.y + r + 18}" text-anchor="middle" font-size="${n.tipo === "conta" ? 13 : 12}" font-weight="${n.tipo === "conta" ? 600 : 400}" fill="#f4f1e8" stroke="#0b1424" stroke-width="4" paint-order="stroke" font-family="Segoe UI, Arial">${esc(String(n.rotulo || "").slice(0, 36))}</text></g>`;
   }
   svg += "</g></svg>";
+  const nomesLayout = { piramide: "Pirâmide", circular: "Circular", torre: "Torre", automatico: "Automático" };
   area.innerHTML = `<div class="grafo-viewport" id="grafo-viewport">
       <div class="grafo-legenda">
         <div><i style="background:#e0b14a"></i>Conta do extrato</div>
         <div><i style="background:#3ecfbf"></i>Quem enviou ou recebeu</div>
         <div><i style="background:#c084fc"></i>Mesmo CPF/CNPJ</div>
         <div><i style="background:#e0b14a"></i>Hipótese só por nome</div>
-        <p class="mini">Como no Mercure e no i2: arraste a pessoa ou a conta; puxe o ponto da seta para curvá-la. Fundo = mover o mapa · role = zoom. Setas = direção do registro, não prova de origem do dinheiro.</p>
+        <p class="mini">Organização: ${esc(nomesLayout[estado.grafoLayout] || estado.grafoLayout)}. Arraste a pessoa ou a conta. Clique na seta para o valor. Fundo = mover o mapa · role = zoom. Setas retas = direção do registro, não prova de origem do dinheiro.</p>
         ${g.omitidos ? `<p class="mini">${g.omitidos} nós menores foram omitidos.</p>` : ""}
       </div>
       <div class="grafo-ferramentas"><button type="button" id="gz-mais" title="Aproximar">+</button><button type="button" id="gz-menos" title="Afastar">−</button><button type="button" id="gz-reset" title="Ajustar">⊡</button><button type="button" id="gz-png" title="Baixar PNG">PNG</button></div>
-      <div class="grafo-detalhe" id="grafo-detalhe">Clique em um círculo para ver os valores.</div>
+      <div class="grafo-detalhe" id="grafo-detalhe">Clique em um círculo ou numa seta para ver os valores.</div>
       ${svg}
     </div>
     <p class="aviso">${esc(g.aviso)}</p>`;
@@ -986,18 +1196,56 @@ async function gerarGrafo() {
   $("#gz-menos").onclick = () => estado.grafoCtrl.menos();
   $("#gz-reset").onclick = () => estado.grafoCtrl.reset();
   if ($("#gz-png")) $("#gz-png").onclick = baixarGrafoPng;
+  const box = $("#grafo-detalhe");
+  const mostrarAresta = (a) => {
+    $$("#svg-grafo .aresta").forEach((p) => p.classList.toggle("ativa", +p.dataset.i === a.i));
+    const de = id[a.de], para = id[a.para];
+    box.classList.add("caixa-seta");
+    box.innerHTML = `<b>${esc((de && de.rotulo) || "?")} → ${esc((para && para.rotulo) || "?")}</b>
+      <div style="font-size:18px;margin:6px 0;color:#e8d09a">${esc(a.valor_fmt)}</div>
+      <span class="mini">${a.n} lançamento(s)${a.nd ? " · parcelas não distribuídas" : ""}</span>`;
+  };
+  $$("#svg-grafo .aresta-hit").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (estado.grafoCtrl && estado.grafoCtrl.arrastou()) return;
+      const a = ars[+el.dataset.i];
+      if (a) mostrarAresta(a);
+    });
+  });
   $$("#svg-grafo .no-grafo").forEach((el) => (el.onclick = (e) => {
     e.stopPropagation();
     if (estado.grafoCtrl && estado.grafoCtrl.arrastou()) return;
     const n = id[el.dataset.id];
     if (!n) return;
+    $$("#svg-grafo .aresta").forEach((p) => p.classList.remove("ativa"));
+    box.classList.remove("caixa-seta");
     const lig = ars.filter((a) => a.de === n.id || a.para === n.id);
-    $("#grafo-detalhe").innerHTML = `<b>${esc(n.rotulo)}</b> <span class="mini">${esc(n.tipo)} ${esc(n.detalhe || "")} ${esc(n.identificacao || "")}</span><br>${lig.slice(0, 8).map((a) => `${esc(a.valor_fmt)} · ${a.n} lanç.`).join("<br>") || "sem setas visíveis"}`;
+    box.innerHTML = `<b>${esc(n.rotulo)}</b> <span class="mini">${esc(n.tipo)} ${esc(n.detalhe || "")} ${esc(n.identificacao || "")}</span><br>${lig.slice(0, 8).map((a) => `${esc(a.valor_fmt)} · ${a.n} lanç.`).join("<br>") || "sem setas visíveis"}`;
   }));
   destacarGrafo($("#gf-busca").value);
 }
 $("#gf-busca").addEventListener("input", () => destacarGrafo($("#gf-busca").value));
 $("#btn-grafo").onclick = () => gerarGrafo().catch((e) => { $("#grafo-area").innerHTML = `<div class="erro">${esc(e.message)}</div>`; });
+$$("#grafo-org .org-btn").forEach((b) => {
+  b.onclick = () => {
+    estado.grafoLayout = b.dataset.layout;
+    localStorage.setItem("grafoLayout", estado.grafoLayout);
+    estado.grafoPos = {};
+    marcarOrgGrafo();
+    if (estado.grafoDados) desenharGrafo(estado.grafoDados);
+    else gerarGrafo().catch((e) => { $("#grafo-area").innerHTML = `<div class="erro">${esc(e.message)}</div>`; });
+  };
+});
+if ($("#gf-valores")) {
+  $("#gf-valores").value = estado.grafoValores || "todas";
+  $("#gf-valores").onchange = () => {
+    estado.grafoValores = $("#gf-valores").value;
+    localStorage.setItem("grafoValores", estado.grafoValores);
+    if (estado.grafoDados) desenharGrafo(estado.grafoDados);
+  };
+}
+marcarOrgGrafo();
 function baixarGrafoPng() {
   const svg = $("#svg-grafo"); if (!svg) return alert("Aguarde o grafo aparecer (ou importe um extrato).");
   const img = new Image();

@@ -1,3 +1,4 @@
+import os
 import unittest
 import zipfile
 import io
@@ -125,11 +126,40 @@ class TestRif(CasoTeste):
         f = self.fonte(exemplo("EXEMPLO_FICTICIO_rif.zip"))
         rel = self.app.importar(f["id"], "rif", None, {"numero_rif": "RIF-TESTE", "coluna_valor": "CampoA"}, self.usuario)
         self.assertEqual(rel["aceitos"], 0)
+        self.assertTrue(rel.get("rif_id"))
         self.assertEqual(self.app.b.q1("SELECT COUNT(*) n FROM lancamentos")["n"], 0)
         r = rif.resumo(self.app.b, self.caso)[0]
         self.assertEqual((len(r["comunicacoes"]), len(r["envolvidos"]), len(r["ocorrencias"])), (1, 2, 1))
         self.assertEqual(r["comunicacoes"][0]["valor_centavos"], 100000)
         self.assertIn("não", r["restricao"].lower())
+
+    def test_rif_varios_arquivos_mesmo_relatorio(self):
+        rid = None
+        with zipfile.ZipFile(exemplo("EXEMPLO_FICTICIO_rif.zip")) as z:
+            for nome in z.namelist():
+                f = self.fonte_bytes(os.path.basename(nome), z.read(nome))
+                op = {"numero_rif": "RIF-PEDACOS", "coluna_valor": "CampoA"}
+                if rid:
+                    op["rif_id"] = rid
+                rel = self.app.importar(f["id"], "rif", None, op, self.usuario)
+                self.assertEqual(rel["aceitos"], 0)
+                rid = rel["rif_id"]
+                self.assertTrue(rid)
+        rifs = rif.resumo(self.app.b, self.caso)
+        self.assertEqual(len(rifs), 1)
+        r = rifs[0]
+        self.assertEqual((len(r["comunicacoes"]), len(r["envolvidos"]), len(r["ocorrencias"])), (1, 2, 1))
+        self.assertEqual(r["comunicacoes"][0]["valor_centavos"], 100000)
+
+    def test_rif_anexar_ao_ultimo(self):
+        with zipfile.ZipFile(exemplo("EXEMPLO_FICTICIO_rif.zip")) as z:
+            arquivos = [(os.path.basename(n), z.read(n)) for n in z.namelist()]
+        f1 = self.fonte_bytes(arquivos[0][0], arquivos[0][1])
+        rel1 = self.app.importar(f1["id"], "rif", None, {"numero_rif": "RIF-A"}, self.usuario)
+        f2 = self.fonte_bytes(arquivos[1][0], arquivos[1][1])
+        rel2 = self.app.importar(f2["id"], "rif", None, {"anexar_ao_ultimo": True}, self.usuario)
+        self.assertEqual(rel1["rif_id"], rel2["rif_id"])
+        self.assertEqual(len(rif.resumo(self.app.b, self.caso)), 1)
         self.importar_tabela(exemplo("EXEMPLO_FICTICIO_extrato.csv"))
         r = rif.resumo(self.app.b, self.caso)[0]
         self.assertIn(cpf(1), [x["doc"] for x in r["envolvidos_com_movimentacao"]])

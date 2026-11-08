@@ -46,6 +46,21 @@ def tipo_arquivo(cabecalho):
     return None
 
 
+def _resolver_rif_id(imp, opcoes):
+    """Reusa o RIF do lote (comunicações + envolvidos + ocorrências em arquivos separados)."""
+    rid = opcoes.get("rif_id")
+    if rid not in (None, "", 0, "0"):
+        r = imp.b.q1("SELECT id FROM rif_relatorios WHERE id=? AND caso_id=?", (int(rid), imp.caso_id))
+        if not r:
+            raise ValueError("O RIF indicado não pertence a este caso.")
+        return r["id"]
+    if opcoes.get("anexar_ao_ultimo"):
+        r = imp.b.q1("SELECT id FROM rif_relatorios WHERE caso_id=? ORDER BY id DESC LIMIT 1", (imp.caso_id,))
+        if r:
+            return r["id"]
+    return None
+
+
 def _tabelas(caminho, tipo, nome):
     """Lista de (nome_local, cabecalho, linhas[(n, dict)])."""
     _, gen, local = adaptadores.ler_tabela(caminho, tipo)
@@ -82,12 +97,18 @@ def importar(imp, caminho, tipo_fonte, nome_fonte, opcoes, pasta_tmp):
     else:
         tabelas = _tabelas(caminho, tipo_fonte, nome_fonte)
 
-    rif_id = imp.b.con.execute(
-        "INSERT INTO rif_relatorios(caso_id, fonte_id, numero, observacao, restricao, criado_em, criado_por) VALUES (?,?,?,?,?,?,?)",
-        (imp.caso_id, imp.fonte["id"], opcoes.get("numero_rif"), opcoes.get("observacao"),
-         opcoes.get("restricao") or RESTRICAO_PADRAO, util.agora_iso(), imp.usuario)).lastrowid
+    rif_id = _resolver_rif_id(imp, opcoes)
+    if rif_id is None:
+        rif_id = imp.b.con.execute(
+            "INSERT INTO rif_relatorios(caso_id, fonte_id, numero, observacao, restricao, criado_em, criado_por) VALUES (?,?,?,?,?,?,?)",
+            (imp.caso_id, imp.fonte["id"], opcoes.get("numero_rif"), opcoes.get("observacao"),
+             opcoes.get("restricao") or RESTRICAO_PADRAO, util.agora_iso(), imp.usuario)).lastrowid
+    elif opcoes.get("numero_rif"):
+        imp.b.con.execute("UPDATE rif_relatorios SET numero=COALESCE(NULLIF(numero,''), ?) WHERE id=?",
+                          (opcoes.get("numero_rif"), rif_id))
     col_valor = opcoes.get("coluna_valor")
     reconhecidas = 0
+    n_com = n_env = n_oc = 0
     for local, cab, linhas in tabelas:
         tipo = tipo_arquivo(cab)
         if tipo is None:
@@ -123,6 +144,7 @@ def importar(imp, caminho, tipo_fonte, nome_fonte, opcoes, pasta_tmp):
                     imp._ident("cidade", " / ".join(x for x in (g.get("cidade"), g.get("uf")) if x), "rif_comunicacoes", cid, local, n, "RIF")
                 if g.get("informacoes"):
                     imp.ident_texto(g["informacoes"], "rif_comunicacoes", cid, local, n, "RIF informações adicionais")
+                n_com += 1
             elif tipo == "envolvidos":
                 doc_tipo = util.classificar_documento(g.get("doc"))[0] if g.get("doc") else None
                 eid = imp.b.con.execute(
@@ -136,17 +158,23 @@ def importar(imp, caminho, tipo_fonte, nome_fonte, opcoes, pasta_tmp):
                 imp._ident("doc", g.get("doc"), "rif_envolvidos", eid, local, n, papel)
                 if g.get("conta"):
                     imp._ident("conta", "AG %s CONTA %s" % (g.get("agencia") or "?", g.get("conta")), "rif_envolvidos", eid, local, n, papel)
+                n_env += 1
             else:
                 imp.b.con.execute(
                     "INSERT INTO rif_ocorrencias(rif_id, caso_id, fonte_id, local, linha, id_comunicacao, ocorrencia, bruto_json) "
                     "VALUES (?,?,?,?,?,?,?,?)", (rif_id, imp.caso_id, imp.fonte["id"], local, n, g.get("id_comunicacao"),
                                                  g.get("ocorrencia"), util.json_dump(reg)))
+                n_oc += 1
             imp._passo()
     if not reconhecidas:
         raise ValueError("Nenhum arquivo de comunicações, envolvidos ou ocorrências foi reconhecido.")
     imp.aviso(RESTRICAO_PADRAO)
-    if not col_valor:
+    if n_com and not col_valor:
         imp.aviso("Nenhuma coluna de valor da comunicação foi indicada; valores do RIF não foram lidos.")
+    imp.rel["rif_id"] = rif_id
+    imp.rel["rif_comunicacoes"] = n_com
+    imp.rel["rif_envolvidos"] = n_env
+    imp.rel["rif_ocorrencias"] = n_oc
     return rif_id
 
 

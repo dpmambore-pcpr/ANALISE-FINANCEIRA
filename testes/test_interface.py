@@ -18,7 +18,7 @@ def _ler(nome):
 
 class TestInterfaceArquivos(unittest.TestCase):
     def test_versao(self):
-        self.assertEqual(VERSAO, "3.4.5")
+        self.assertEqual(VERSAO, "3.4.6")
 
     def test_html_fluxo_simples(self):
         html = _ler("index.html")
@@ -27,7 +27,14 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn("3. Grafo", html)
         self.assertIn("4. Análise", html)
         self.assertIn('id="nav-mais"', html)
-        self.assertIn("Clique para escolher o arquivo", html)
+        self.assertIn("Clique para escolher os arquivos", html)
+        self.assertIn('id="imp-arquivo" multiple', html)
+        self.assertIn('id="imp-fila"', html)
+        self.assertIn("Enviar arquivos", html)
+        self.assertIn("quebra de bancos", html)
+        self.assertIn("data-layout=\"piramide\"", html)
+        self.assertIn("data-layout=\"torre\"", html)
+        self.assertIn('id="gf-valores"', html)
         self.assertIn("btn-analisar-juntos", html)
         self.assertIn("estante-casos", html)
         self.assertIn("056-PCPR-000677-20", html)
@@ -38,7 +45,7 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn('id="ia-doc-soltar"', html)
         self.assertIn('id="ia-doc-papel"', html)
         self.assertIn("O mapa monta sozinho", html)
-        self.assertIn("Mercure", html)
+        self.assertIn("Pirâmide", html)
         self.assertNotIn("Gerar grafo", html)
 
     def test_js_auto_grafo_e_analise(self):
@@ -54,8 +61,15 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn("Pode marcar várias. Cada caixa já aplica.", js)
         self.assertIn("agendarGrafo", js)
         self.assertIn("ligarGrafoInterativo", js)
-        self.assertIn("aresta-alca", js)
+        self.assertIn("layoutTorre", js)
+        self.assertIn("layoutPiramide", js)
+        self.assertIn("geomArestaReta", js)
+        self.assertIn("listaArquivos", js)
+        self.assertIn("opcoesRif", js)
+        self.assertIn("rifLoteId", js)
+        self.assertIn("filaImportacao", js)
         self.assertIn('markerUnits="userSpaceOnUse"', js)
+        self.assertNotIn("aresta-alca", js)
         self.assertNotIn("function ligarPanZoom", js)
         self.assertIn("Este programa está desatualizado", js)
         self.assertIn("verificarAtualizacao(false)", js)
@@ -75,8 +89,9 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn("#0b1424", css)
         self.assertIn(".vazio-grafo", css)
         self.assertIn("ol.passos", css)
-        self.assertIn(".aresta-alca", css)
+        self.assertIn(".org-btn", css)
         self.assertIn(".no-grafo", css)
+        self.assertIn(".aresta.ativa", css)
 
 
 class TestGrafoAposImportar(CasoTeste):

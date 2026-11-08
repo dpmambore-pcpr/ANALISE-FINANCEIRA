@@ -39,6 +39,12 @@ class TestLerNomeArquivo(unittest.TestCase):
         self.assertIsNone(r["numero"])
         self.assertTrue(r["nome_sugerido"])
 
+    def test_pecas_do_rif_nao_viram_apelido(self):
+        r = protocolo.ler_nome("RIF_FICTICIO_Comunicacoes.csv")
+        self.assertNotIn("Comunicacoes", r["nome_sugerido"])
+        r2 = protocolo.ler_nome("056-PCPR-000677-20_ENVOLVIDOS.csv")
+        self.assertEqual(r2["nome_sugerido"], "Caso 677")
+
 
 class TestCasoProtocoloEConjunto(CasoTeste):
     def test_criar_com_protocolo_e_encontrar(self):

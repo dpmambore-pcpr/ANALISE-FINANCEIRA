@@ -4,7 +4,7 @@
 
 1. **Início** → informe seu nome no topo. Clique no cartão do caso que quer analisar, ou marque dois ou mais e **Analisar casos marcados juntos**. (Papéis da equipe, se necessário: leitor, analista, revisor, administrador.)
 2. **Remessas** (em Início, opcional) → uma remessa por resposta de banco (ex.: "Banco X — ofício 12/2026"). Assim as chaves internas de cada banco nunca se misturam.
-3. **1. Importar** → escolha ou arraste o arquivo. O programa lê o nome: `056-PCPR-000677-20` vira **Caso 677**; se o arquivo for “extrato detalhado” (ou RIF/ofício), o apelido não entra; se o nome tiver inscrição (elon musk, casa mambore, gordo), vira **Caso 677 elon musk**. Na hora de enviar, escolha criar caso novo ou acrescentar a um caso antigo. O original é guardado sem alteração em `dados/casos/caso_N/originais/` com SHA-256. Arquivo idêntico ao já recebido no mesmo caso é recusado. Se for extrato, os lançamentos **já aparecem** em **2. Movimentações**.
+3. **1. Importar** → escolha ou arraste **um ou vários** arquivos (RIF em comunicações/envolvidos/ocorrências, quebra de bancos, extratos). O programa lê o nome: `056-PCPR-000677-20` vira **Caso 677**; se o arquivo for “extrato detalhado” (ou ofício), o apelido não entra; se o nome tiver inscrição (elon musk, casa mambore, gordo), vira **Caso 677 elon musk**. Na hora de enviar, escolha criar caso novo ou acrescentar a um caso antigo — os arquivos do lote entram no mesmo caso. Os pedaços do RIF viram **um único relatório**. O original é guardado sem alteração em `dados/casos/caso_N/originais/` com SHA-256. Arquivo idêntico ao já recebido no mesmo caso é recusado. Se for extrato, os lançamentos **já aparecem** em **2. Movimentações**.
 4. Na prévia, escolha o **tipo de dado**:
    - *Extrato / movimentação* — gera lançamentos e entra nos totais;
    - *Registros de acesso, IP e geolocalização* — nunca vira transação;
@@ -36,9 +36,10 @@ Reúne identificadores de todas as fontes: extratos (lançamento e origem/destin
 
 ## Grafo e sequências
 
-- O grafo **monta sozinho** ao abrir a aba. Contas do extrato (dourado) e quem enviou/recebeu (verde-água); setas na direção dos registros, com o valor nas principais; espessura proporcional ao volume. Ligação lilás = mesmo CPF/CNPJ do titular; dourada tracejada = hipótese só por nome.
+- O grafo **monta sozinho** ao abrir a aba. Contas do extrato (dourado) e quem enviou/recebeu (verde-água); setas **retas** na direção dos registros, com o valor (todas, só as maiores, ou ocultas — clique na seta abre a caixa). Espessura proporcional ao volume. Ligação lilás = mesmo CPF/CNPJ do titular; dourada tracejada = hipótese só por nome.
+- **Organizar:** *Pirâmide* (conta no topo, demais em fileiras); *Circular* (contas no centro, pessoas em volta); *Torre* (quem enviou à esquerda, contas no meio, quem recebeu à direita); *Automático* (espalha sozinho e afasta nós e setas). Trocar o modo refaz o desenho.
 - **Filtros** (recolhidos): pessoa, conta, valor, período, texto, volume mínimo da seta, quantidade máxima de nós. Marque as caixas: o grafo atualiza na hora e a lista permanece aberta para marcar várias. Opcionalmente reutiliza os filtros das Movimentações.
-- **Mover (como no Mercure e no i2):** arraste a pessoa ou a conta; puxe o ponto no meio da seta para curvá-la; arraste o fundo para deslocar o mapa. Role o mouse (ou os botões +/−) para aproximar e afastar; ⊡ volta ao enquadramento. Clique no círculo (sem arrastar) para ver o rótulo.
+- **Mover:** arraste a pessoa ou a conta; arraste o fundo para deslocar o mapa. Role o mouse (ou os botões +/−) para aproximar e afastar; ⊡ volta ao enquadramento. Clique no círculo ou na seta (sem arrastar) para ver os valores.
 - Sequências: a partir do CPF/CNPJ de um titular, procura débitos a pessoas que são titulares de outras contas do caso e, nessas contas, débitos posteriores dentro da janela de dias com valor até o recebido (mais a tolerância). Cada elo mostra fonte e linha e indica se existe o crédito correspondente na conta de destino. É sempre **possibilidade**: não demonstra que o mesmo dinheiro foi repassado.
 
 ## Análise preliminar e chat (aba 4. Análise)

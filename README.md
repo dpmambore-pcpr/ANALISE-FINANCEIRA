@@ -37,11 +37,11 @@ Por padrão o programa **não envia dados de caso à internet**. O atualizador c
 | Aba | Para quê |
 |---|---|
 | Início | Clique no caso, ou marque vários e **Analisar juntos**. |
-| 1. Importar | Envia CSV/TXT, XLSX, ZIP, PDF (arquivo ou arrastar). Lê o número SIMBA no nome (`056-PCPR-000677-20` → Caso 677; com apelido → Caso 677 elon musk) e pergunta se cria caso novo ou acrescenta a um antigo. Guarda o original com SHA-256; se for extrato, **os lançamentos já aparecem** em Movimentações. |
+| 1. Importar | Envia **um ou vários** CSV/TXT, XLSX, ZIP, PDF (RIF em pedaços, quebra de bancos). Lê o número SIMBA no nome (`056-PCPR-000677-20` → Caso 677; com apelido → Caso 677 elon musk) e pergunta se cria caso novo ou acrescenta a um antigo. Guarda o original com SHA-256; se for extrato, **os lançamentos já aparecem** em Movimentações. |
 | 2. Movimentações | Lista e totais com **filtros de múltipla escolha**: CPF/CNPJ, nomes, contas, bancos, PIX, tipo, descrição, mês, data, IP, cidade, status, arquivo e remessa. |
 | Pesquisa geral | Lista **tudo** o que foi encontrado em todos os documentos (extratos, cadastros, acessos, RIF, texto de PDF): CPF, CNPJ, nomes, bancos, contas, PIX, ID PIX, e-mails, telefones, IPs, coordenadas, cidades, dispositivos e datas. Marque valores e veja onde cada um aparece (arquivo, página/linha). |
 | IP / Geolocalização | Registros de acesso de qualquer banco: IP, porta, data/hora com fuso original, latitude/longitude, cidade, dispositivo; gráfico de dispersão das coordenadas sem mapa da internet. |
-| 3. Grafo | Mapa de transferências **monta sozinho** (contas e quem enviou/recebeu). Arraste pessoas, contas e setas (como no Mercure e no i2); pan e zoom; sequências de repasses rotuladas como **possibilidade**. |
+| 3. Grafo | Mapa de transferências **monta sozinho**. Organização em pirâmide, circular, torre ou automático; setas retas com valor; clique na seta para o detalhe. Arraste pessoas e contas; pan e zoom. |
 | Duplicatas | Revisão humana de registros repetidos entre abas/arquivos e dos dois lados de transferências. |
 | RIF | Comunicações, envolvidos e ocorrências, **separados** dos extratos e fora dos totais. |
 | PDF / OCR | Texto por página, OCR local opcional (Tesseract/Poppler) e revisão por caixa delimitadora. |

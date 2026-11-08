@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## 3.4.6
+- **Importar vários de uma vez:** RIF (comunicações, envolvidos, ocorrências) e quebra de bancos — escolha ou arraste vários arquivos; todos entram no mesmo caso. O programa pergunta o destino uma vez e importa em seguida. Os pedaços do RIF viram **um único relatório**.
+- **Grafo:** organização em **pirâmide**, **circular**, **torre** (quem enviou à esquerda, quem recebeu à direita) ou **automático**. Setas retas, deslocadas para não se sobrepor; opção de mostrar o valor em todas, só nas maiores, ou ocultar. Clique na seta abre a caixa com origem, destino, valor e quantidade de lançamentos.
+
 ## 3.4.5
 - **Casos pelo nome do arquivo SIMBA:** `056-PCPR-000677-20` vira **Caso 677**. Palavras genéricas (extrato detalhado, RIF, ofício) não entram no nome; um apelido (elon musk, casa mambore, gordo) vira **Caso 677 elon musk**.
 - Ao importar, o programa pergunta se cria um caso novo ou acrescenta a um caso já existente.
