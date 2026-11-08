@@ -7,7 +7,8 @@ const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const estado = { caso: null, filtros: {}, facetas: [], fontes: [], geralSel: {}, acessosFiltros: {}, previa: null, fonteAtual: null,
   gFiltros: {}, conversaId: null, grafoCtrl: null, grafoPos: {}, grafoOff: null, grafoDados: null,
   grafoLayout: localStorage.getItem("grafoLayout") || "torre",
-  grafoValores: localStorage.getItem("grafoValores") || "todas" };
+  grafoValores: localStorage.getItem("grafoValores") || "todas",
+  grafoLegenda: localStorage.getItem("grafoLegenda") !== "0" };
 
 function usuario() { return $("#usuario").value.trim(); }
 
@@ -961,9 +962,68 @@ function raioNo(n, maxVol) {
   if (n.tipo === "nao_distribuido") return 12;
   return 11 + 12 * Math.sqrt((n.volume || 0) / Math.max(1, maxVol));
 }
+function htmlOrgGrafo() {
+  const ativa = (k) => estado.grafoLayout === k ? " ativa" : "";
+  const val = estado.grafoValores || "todas";
+  return `<div class="grafo-org grafo-org-in" id="grafo-org">
+    <button type="button" class="org-btn${ativa("piramide")}" data-layout="piramide">Pirâmide</button>
+    <button type="button" class="org-btn${ativa("circular")}" data-layout="circular">Circular</button>
+    <button type="button" class="org-btn${ativa("torre")}" data-layout="torre">Torre</button>
+    <button type="button" class="org-btn${ativa("automatico")}" data-layout="automatico">Automático</button>
+    <label class="org-valores">Valores <select id="gf-valores">
+      <option value="todas"${val === "todas" ? " selected" : ""}>todas</option>
+      <option value="principais"${val === "principais" ? " selected" : ""}>só as maiores</option>
+      <option value="ocultos"${val === "ocultos" ? " selected" : ""}>ocultar (clique na seta)</option>
+    </select></label></div>`;
+}
+function htmlLegendaGrafo(g) {
+  const retraida = !estado.grafoLegenda;
+  const nomesLayout = { piramide: "Pirâmide", circular: "Circular", torre: "Torre", automatico: "Automático" };
+  return `<div class="grafo-legenda${retraida ? " retraida" : ""}" id="grafo-legenda">
+    <button type="button" class="legenda-toggle" id="grafo-legenda-btn" title="Mostrar ou esconder a legenda">${retraida ? "Cores" : "▾ Cores"}</button>
+    <div class="legenda-corpo">
+      <div><i style="background:#e0b14a"></i>Conta do extrato</div>
+      <div><i style="background:#3ecfbf"></i>Quem enviou ou recebeu</div>
+      <div><i style="background:#c084fc"></i>Mesmo CPF/CNPJ</div>
+      <div><i style="background:#e0b14a"></i>Hipótese só por nome</div>
+      <p class="mini">Organização: ${esc(nomesLayout[estado.grafoLayout] || estado.grafoLayout)}. Arraste a pessoa ou a conta. Clique na seta para o valor. Fundo = mover o mapa · role = zoom. Setas retas = direção do registro, não prova de origem do dinheiro.</p>
+      ${g && g.omitidos ? `<p class="mini">${g.omitidos} nós menores foram omitidos.</p>` : ""}
+    </div>
+  </div>`;
+}
 function marcarOrgGrafo() {
   $$("#grafo-org .org-btn").forEach((b) => b.classList.toggle("ativa", b.dataset.layout === estado.grafoLayout));
   if ($("#gf-valores")) $("#gf-valores").value = estado.grafoValores || "todas";
+}
+function ligarOrgGrafo() {
+  $$("#grafo-org .org-btn").forEach((b) => {
+    b.onclick = () => {
+      estado.grafoLayout = b.dataset.layout;
+      localStorage.setItem("grafoLayout", estado.grafoLayout);
+      estado.grafoPos = {};
+      marcarOrgGrafo();
+      if (estado.grafoDados) desenharGrafo(estado.grafoDados);
+      else gerarGrafo().catch((e) => { $("#grafo-area").innerHTML = `<div class="erro">${esc(e.message)}</div>`; });
+    };
+  });
+  if ($("#gf-valores")) {
+    $("#gf-valores").onchange = () => {
+      estado.grafoValores = $("#gf-valores").value;
+      localStorage.setItem("grafoValores", estado.grafoValores);
+      if (estado.grafoDados) desenharGrafo(estado.grafoDados);
+    };
+  }
+  marcarOrgGrafo();
+  const btn = $("#grafo-legenda-btn");
+  if (btn) {
+    btn.onclick = () => {
+      estado.grafoLegenda = !estado.grafoLegenda;
+      localStorage.setItem("grafoLegenda", estado.grafoLegenda ? "1" : "0");
+      const el = $("#grafo-legenda");
+      if (el) el.classList.toggle("retraida", !estado.grafoLegenda);
+      btn.textContent = estado.grafoLegenda ? "▾ Cores" : "Cores";
+    };
+  }
 }
 function afastarNos(nos, rai, W, H, vezes) {
   const pad = 90;
@@ -1176,21 +1236,15 @@ function desenharGrafo(g) {
       <text x="${n.x}" y="${n.y + r + 18}" text-anchor="middle" font-size="${n.tipo === "conta" ? 13 : 12}" font-weight="${n.tipo === "conta" ? 600 : 400}" fill="#f4f1e8" stroke="#0b1424" stroke-width="4" paint-order="stroke" font-family="Segoe UI, Arial">${esc(String(n.rotulo || "").slice(0, 36))}</text></g>`;
   }
   svg += "</g></svg>";
-  const nomesLayout = { piramide: "Pirâmide", circular: "Circular", torre: "Torre", automatico: "Automático" };
   area.innerHTML = `<div class="grafo-viewport" id="grafo-viewport">
-      <div class="grafo-legenda">
-        <div><i style="background:#e0b14a"></i>Conta do extrato</div>
-        <div><i style="background:#3ecfbf"></i>Quem enviou ou recebeu</div>
-        <div><i style="background:#c084fc"></i>Mesmo CPF/CNPJ</div>
-        <div><i style="background:#e0b14a"></i>Hipótese só por nome</div>
-        <p class="mini">Organização: ${esc(nomesLayout[estado.grafoLayout] || estado.grafoLayout)}. Arraste a pessoa ou a conta. Clique na seta para o valor. Fundo = mover o mapa · role = zoom. Setas retas = direção do registro, não prova de origem do dinheiro.</p>
-        ${g.omitidos ? `<p class="mini">${g.omitidos} nós menores foram omitidos.</p>` : ""}
-      </div>
+      ${htmlOrgGrafo()}
+      ${htmlLegendaGrafo(g)}
       <div class="grafo-ferramentas"><button type="button" id="gz-mais" title="Aproximar">+</button><button type="button" id="gz-menos" title="Afastar">−</button><button type="button" id="gz-reset" title="Ajustar">⊡</button><button type="button" id="gz-png" title="Baixar PNG">PNG</button></div>
       <div class="grafo-detalhe" id="grafo-detalhe">Clique em um círculo ou numa seta para ver os valores.</div>
       ${svg}
     </div>
     <p class="aviso">${esc(g.aviso)}</p>`;
+  ligarOrgGrafo();
   estado.grafoCtrl = ligarGrafoInterativo($("#svg-grafo"), { nos, id, ars, rai });
   $("#gz-mais").onclick = () => estado.grafoCtrl.mais();
   $("#gz-menos").onclick = () => estado.grafoCtrl.menos();
@@ -1227,25 +1281,6 @@ function desenharGrafo(g) {
 }
 $("#gf-busca").addEventListener("input", () => destacarGrafo($("#gf-busca").value));
 $("#btn-grafo").onclick = () => gerarGrafo().catch((e) => { $("#grafo-area").innerHTML = `<div class="erro">${esc(e.message)}</div>`; });
-$$("#grafo-org .org-btn").forEach((b) => {
-  b.onclick = () => {
-    estado.grafoLayout = b.dataset.layout;
-    localStorage.setItem("grafoLayout", estado.grafoLayout);
-    estado.grafoPos = {};
-    marcarOrgGrafo();
-    if (estado.grafoDados) desenharGrafo(estado.grafoDados);
-    else gerarGrafo().catch((e) => { $("#grafo-area").innerHTML = `<div class="erro">${esc(e.message)}</div>`; });
-  };
-});
-if ($("#gf-valores")) {
-  $("#gf-valores").value = estado.grafoValores || "todas";
-  $("#gf-valores").onchange = () => {
-    estado.grafoValores = $("#gf-valores").value;
-    localStorage.setItem("grafoValores", estado.grafoValores);
-    if (estado.grafoDados) desenharGrafo(estado.grafoDados);
-  };
-}
-marcarOrgGrafo();
 function baixarGrafoPng() {
   const svg = $("#svg-grafo"); if (!svg) return alert("Aguarde o grafo aparecer (ou importe um extrato).");
   const img = new Image();
@@ -1391,6 +1426,7 @@ function corpoIA() {
     filtros: lerFiltrosSimples(),
     fonte_id: alvo && alvo.value === "doc" ? +$("#ia-doc").value : null,
     usar_conhecimento: $("#ia-conh").checked,
+    aprender: $("#ia-aprender") ? $("#ia-aprender").checked : true,
     gerar_analise: $("#ia-gerar").checked,
     conversa_id: estado.conversaId,
     hipotese_crime: $("#ia-hipotese").value,
@@ -1431,7 +1467,7 @@ function pintarDocsAnalise(fs) {
   const docs = (fs || []).filter((f) => ["boletim", "relatorio_investigacao", "rif", "documento"].includes(f.papel)
     || (f.tipo === "pdf" && f.papel !== "extrato"));
   if (!docs.length) {
-    el.innerHTML = '<p class="nota">Nenhum boletim, relatório ou PDF anexado ainda. Envie acima — o texto entra na análise local e, se o Gemini estiver autorizado, também na pergunta.</p>';
+    el.innerHTML = '<p class="nota">Nenhum boletim, relatório ou PDF anexado ainda. Envie acima — o texto entra na análise local e, se você escolher Gemini, ChatGPT ou Claude, também na pergunta.</p>';
     return;
   }
   el.innerHTML = `<table class="ia-docs-tab"><tr><th>Arquivo</th><th>Tipo</th><th>Páginas</th></tr>${docs.map((f) => {
@@ -1502,43 +1538,63 @@ async function carregarIA() {
     else await gerarAnalise();
   } catch (e) { $("#ia-analise").innerHTML = `<div class="erro">${esc(e.message)}</div>`; }
 }
-function pintarGemini(g) {
+function pintarChavesIA(r) {
   const st = $("#gemini-status");
   if (!st) return;
+  const g = r.gemini || {};
+  const nv = r.nuvem || {};
+  const partes = [];
+  if (g.configurado && g.confirmado) partes.push("Gemini pronto (" + (g.chave_mascarada || "") + ")");
+  else if (g.configurado) partes.push("Gemini com chave");
+  ["chatgpt", "claude"].forEach((p) => {
+    const s = nv[p] || {};
+    if (s.configurado) partes.push((s.rotulo || p) + " pronto (" + (s.chave_mascarada || "") + ")");
+  });
   st.classList.remove("ok", "alerta");
-  if (g && g.configurado) {
-    st.textContent = "Gemini configurado (" + (g.origem || "arquivo") + ", chave " + (g.chave_mascarada || "definida") + "). "
-      + (g.confirmado ? "Envio autorizado — no chat, deixe Gemini selecionado." : "Falta marcar a autorização de envio.");
-    st.classList.add(g.confirmado ? "ok" : "alerta");
-    if (g.modelo) $("#gemini-modelo").value = g.modelo;
-    if (g.endpoint) $("#gemini-endpoint").placeholder = g.endpoint;
-  } else {
-    st.textContent = "Gemini desligado. Sem chave, nada é enviado à nuvem. Siga os passos abaixo se a unidade usar a parceria.";
-  }
+  if (partes.length) { st.textContent = partes.join(" · ") + ". No chat, escolha qual usar."; st.classList.add("ok"); }
+  else { st.textContent = "Nenhuma chave de nuvem ainda. A análise local funciona sem isso."; }
+  if (g.modelo && $("#gemini-modelo")) $("#gemini-modelo").placeholder = g.modelo;
+  if (nv.chatgpt && nv.chatgpt.modelo && $("#chatgpt-modelo")) $("#chatgpt-modelo").placeholder = nv.chatgpt.modelo;
+  if (nv.claude && nv.claude.modelo && $("#claude-modelo")) $("#claude-modelo").placeholder = nv.claude.modelo;
 }
 function opcoesModelo(r) {
   const g = r.gemini || {};
+  const nv = r.nuvem || {};
   const gem = (g.configurado && g.confirmado && g.modelos) ? g.modelos : [];
   let html = '<option value="">(análise local — sem nuvem)</option>';
-  gem.forEach((m) => { html += `<option value="gemini:${esc(m)}">Gemini · ${esc(m)} (nuvem da parceria)</option>`; });
+  gem.forEach((m) => { html += `<option value="gemini:${esc(m)}">Gemini · ${esc(m)}</option>`; });
+  ["chatgpt", "claude"].forEach((p) => {
+    const s = nv[p] || {};
+    const mods = (s.configurado && s.modelos) ? s.modelos : [];
+    const nome = p === "chatgpt" ? "ChatGPT" : "Claude";
+    mods.forEach((m) => { html += `<option value="${p}:${esc(m)}">${nome} · ${esc(m)}</option>`; });
+  });
   (r.modelos || []).forEach((m) => { html += `<option value="${esc(m)}">${esc(m)} (Ollama local)</option>`; });
-  return { html, gem, g };
+  return { html, gem, g, nv };
 }
 async function verificarModelos() {
   try {
     const r = await api("GET", "/api/ia/modelos");
     const atual = $("#ia-modelo").value;
-    const { html, gem, g } = opcoesModelo(r);
-    pintarGemini(g);
+    const { html, gem, g, nv } = opcoesModelo(r);
+    pintarChavesIA(r);
     $("#ia-modelo").innerHTML = html;
     const valores = Array.from($("#ia-modelo").options).map((o) => o.value);
+    const escolhe = (prefixo, st) => {
+      const mods = (st && st.modelos) || [];
+      if (st && st.modelo && valores.includes(prefixo + st.modelo)) return prefixo + st.modelo;
+      if (mods.length && valores.includes(prefixo + mods[0])) return prefixo + mods[0];
+      return "";
+    };
     if (atual && valores.includes(atual)) $("#ia-modelo").value = atual;
-    else if (gem.length && g.modelo && valores.includes("gemini:" + g.modelo)) $("#ia-modelo").value = "gemini:" + g.modelo;
-    else if (gem.length) $("#ia-modelo").value = "gemini:" + gem[0];
+    else if (gem.length) $("#ia-modelo").value = escolhe("gemini:", g) || ("gemini:" + gem[0]);
+    else if (nv.chatgpt && nv.chatgpt.configurado) $("#ia-modelo").value = escolhe("chatgpt:", nv.chatgpt);
+    else if (nv.claude && nv.claude.configurado) $("#ia-modelo").value = escolhe("claude:", nv.claude);
     else if (r.modelos && r.modelos.length) $("#ia-modelo").value = r.modelos[0];
     const partes = [];
-    if (g.configurado && g.confirmado) partes.push("Gemini autorizado (" + (g.chave_mascarada || "") + ").");
-    else if (g.configurado) partes.push("Gemini com chave, sem autorização de envio.");
+    if (g.configurado && g.confirmado) partes.push("Gemini (" + (g.chave_mascarada || "") + ").");
+    if (nv.chatgpt && nv.chatgpt.configurado) partes.push("ChatGPT (" + (nv.chatgpt.chave_mascarada || "") + ").");
+    if (nv.claude && nv.claude.configurado) partes.push("Claude (" + (nv.claude.chave_mascarada || "") + ").");
     if (r.disponivel === false) {
       partes.push((r.erro || "Ollama indisponível") + " — análise local funciona sem Ollama.");
     } else if (r.modelos && r.modelos.length) {
@@ -1553,47 +1609,51 @@ async function verificarModelos() {
     $("#ia-info").textContent = e.message + " — você ainda pode gerar a análise preliminar; as respostas virão dos cálculos do programa.";
   }
 }
-$("#btn-modelos").onclick = () => verificarModelos();
-$("#btn-gemini-salvar").onclick = async () => {
-  if (!$("#gemini-ok").checked) return alert("Marque a autorização: os dados do caso saem deste computador para o Google.");
-  const corpo = { confirmado: true };
-  const chave = $("#gemini-chave").value.trim();
-  const modelo = $("#gemini-modelo").value.trim();
-  const endpoint = $("#gemini-endpoint").value.trim();
+function rotaChaveIA(provedor) {
+  return provedor === "gemini" ? "/api/ia/gemini" : "/api/ia/nuvem/" + provedor;
+}
+async function salvarChaveIA(provedor) {
+  const info = $("#gemini-info") || $("#nuvem-info");
+  const corpo = provedor === "gemini" ? { confirmado: true } : {};
+  const chaveEl = $("#" + provedor + "-chave");
+  const modeloEl = $("#" + provedor + "-modelo");
+  const chave = chaveEl ? chaveEl.value.trim() : "";
+  const modelo = modeloEl ? modeloEl.value.trim() : "";
   if (chave) corpo.chave = chave;
   if (modelo) corpo.modelo = modelo;
-  if (endpoint) corpo.endpoint = endpoint;
   try {
-    const r = await api("POST", "/api/ia/gemini", corpo);
-    $("#gemini-chave").value = "";
-    pintarGemini(r);
+    await api("POST", rotaChaveIA(provedor), corpo);
+    if (chaveEl) chaveEl.value = "";
     await verificarModelos();
-    $("#gemini-info").textContent = "Chave salva. Testando a conexão (sem enviar dados do caso)…";
+    if (info) info.textContent = "Chave do " + provedor + " salva. Testando…";
     try {
-      const t = await api("POST", "/api/ia/gemini/teste", {});
-      $("#gemini-info").textContent = "Pronto. Conexão ok. No chat, deixe Gemini selecionado e pergunte. " + (t.resposta || "").slice(0, 60);
+      const t = await api("POST", rotaChaveIA(provedor) + "/teste", {});
+      if (info) info.textContent = "Pronto. " + (provedor === "chatgpt" ? "ChatGPT" : provedor === "claude" ? "Claude" : "Gemini")
+        + " ok. No chat, deixe esse serviço selecionado e pergunte. " + (t.resposta || "").slice(0, 60);
     } catch (e) {
-      $("#gemini-info").textContent = "Chave salva, mas o teste falhou: " + e.message;
+      if (info) info.textContent = "Chave salva, mas o teste falhou: " + e.message;
     }
   } catch (e) { alert(e.message); }
-};
-$("#btn-gemini-teste").onclick = async () => {
-  $("#gemini-info").textContent = "Testando o Gemini (sem dados do caso)...";
+}
+async function removerChaveIA(provedor) {
+  const nome = provedor === "chatgpt" ? "ChatGPT" : provedor === "claude" ? "Claude" : "Gemini";
+  if (!confirm("Remover a chave do " + nome + " deste computador?")) return;
   try {
-    const r = await api("POST", "/api/ia/gemini/teste", {});
-    $("#gemini-info").textContent = "Conexão ok: " + (r.resposta || "").slice(0, 80);
-  } catch (e) { $("#gemini-info").textContent = e.message; }
-};
-$("#btn-gemini-remover").onclick = async () => {
-  if (!confirm("Remover a chave do Gemini deste computador? O chat volta a ser só local.")) return;
-  try {
-    await api("POST", "/api/ia/gemini", { remover: true });
-    $("#gemini-chave").value = "";
-    $("#gemini-ok").checked = false;
-    $("#gemini-info").textContent = "Chave removida.";
+    await api("POST", rotaChaveIA(provedor), { remover: true });
+    const chaveEl = $("#" + provedor + "-chave");
+    if (chaveEl) chaveEl.value = "";
+    const info = $("#gemini-info");
+    if (info) info.textContent = "Chave do " + nome + " removida.";
     await verificarModelos();
   } catch (e) { alert(e.message); }
-};
+}
+$("#btn-modelos").onclick = () => verificarModelos();
+["gemini", "chatgpt", "claude"].forEach((p) => {
+  const sal = $("#btn-" + p + "-salvar");
+  const rem = $("#btn-" + p + "-remover");
+  if (sal) sal.onclick = () => salvarChaveIA(p);
+  if (rem) rem.onclick = () => removerChaveIA(p);
+});
 $("#btn-contexto").onclick = async () => {
   try {
     await api("POST", `/api/casos/${exigirCaso()}/contexto`, {

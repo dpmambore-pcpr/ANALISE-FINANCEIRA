@@ -139,21 +139,7 @@
 
 <section id="aba-grafo" class="aba">
   <h2>3. Grafo de transferências</h2>
-  <p class="lead">O mapa monta sozinho. Escolha como organizar (pirâmide, circular, torre ou automático), arraste pessoas e contas, clique na seta para ver o valor. As setas são retas e mostram a direção dos registros — não comprovam que um crédito financiou um débito.</p>
-  <div class="linha-filtros grafo-org" id="grafo-org">
-    <span class="org-rotulo">Organizar</span>
-    <button type="button" class="org-btn" data-layout="piramide">Pirâmide</button>
-    <button type="button" class="org-btn" data-layout="circular">Circular</button>
-    <button type="button" class="org-btn" data-layout="torre">Torre</button>
-    <button type="button" class="org-btn" data-layout="automatico">Automático</button>
-    <label>Valores nas setas
-      <select id="gf-valores">
-        <option value="todas">todas</option>
-        <option value="principais">só as maiores</option>
-        <option value="ocultos">ocultar (clique na seta)</option>
-      </select>
-    </label>
-  </div>
+  <p class="lead">O mapa monta sozinho. Os botões Pirâmide, Circular, Torre e Automático ficam em cima do desenho. A legenda de cores no canto pode ser recolhida. Arraste pessoas e contas; clique na seta para ver o valor. As setas são retas e mostram a direção dos registros — não comprovam que um crédito financiou um débito.</p>
   <details class="cartao avancado">
     <summary>Filtros do grafo (só se quiser recortar)</summary>
     <p class="nota">Independentes da aba Movimentações, a menos que você marque a opção. Abra uma lista e marque as caixas: o grafo atualiza na hora, e você pode marcar várias.</p>
@@ -237,49 +223,52 @@
 </section>
 
 <section id="aba-ia" class="aba">
-  <h2>4. Análise e Gemini</h2>
-  <p class="lead">A análise preliminar é calculada neste computador, sem internet: valores semelhantes, destino do dinheiro da vítima, saques e cartão. O chat usa essa análise. O Gemini da parceria é opcional — só envia dados se você colar a chave e autorizar.</p>
+  <h2>4. Análise e IA</h2>
+  <p class="lead">A análise preliminar é calculada neste computador, sem internet. Se quiser texto mais livre, use a IA local (Ollama) ou cole a chave do Gemini, ChatGPT ou Claude — as perguntas saem desta máquina para o serviço escolhido. As respostas da nuvem ficam guardadas aqui para a IA local ir aprendendo.</p>
 
   <div class="cartao gemini-form">
-    <h3>Gemini da Polícia Civil (opcional)</h3>
-    <p id="gemini-status" class="status-gemini">Gemini desligado. Sem chave, nada é enviado à nuvem.</p>
-    <ol class="passos">
-      <li>
-        <b>Peça a chave à TI da unidade</b>
-        <p>A Polícia Civil tem parceria com o Gemini. Quem cuida da informática da delegacia deve fornecer a chave. Você não precisa criar conta Google pessoal.</p>
-        <p>Se a TI pediu para você gerar a chave no Google AI Studio, faça assim (precisa de internet neste passo):</p>
-        <ol class="sub">
-          <li>Abra <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.</li>
-          <li>Entre com a <b>conta institucional</b> que a TI indicar (não use e-mail pessoal).</li>
-          <li>Clique em <b>Create API key</b> (Criar chave de API).</li>
-          <li>Copie a chave — em geral começa com <code>AIza</code>.</li>
-        </ol>
-      </li>
-      <li><b>Cole a chave</b> no campo abaixo. Ela fica só neste computador (pasta dados), não vai para o Git nem para outros casos automaticamente.</li>
-      <li>Marque <b>autorizo o envio</b>. Só então trechos do caso (totais, amostra de lançamentos, <b>texto do boletim, relatório e outros documentos</b> anexados abaixo) saem desta máquina para os servidores do Google.</li>
-      <li>Clique em <b>Salvar e testar</b>. O teste manda só a palavra «ok», sem dados do caso. Se der certo, no chat deixe selecionado <b>Gemini</b> e pergunte.</li>
-    </ol>
-    <div class="gemini-chave-linha">
-      <label>Chave da API <input id="gemini-chave" type="password" autocomplete="off" placeholder="cole aqui a chave que a TI passou"></label>
+    <h3>Usar IA (local ou na nuvem)</h3>
+    <p class="nota">Cole a chave do serviço que você já paga. Fica só neste computador. Depois escolha no chat qual IA usar. Sem chave, a análise local continua funcionando.</p>
+    <p id="gemini-status" class="status-gemini">Nenhuma chave de nuvem ainda.</p>
+    <div class="chaves-ia">
+      <div class="chave-ia">
+        <b>Gemini</b>
+        <p class="mini">Chave em <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></p>
+        <input id="gemini-chave" type="password" autocomplete="off" placeholder="cole a chave do Gemini">
+        <input id="gemini-modelo" placeholder="gemini-3.8-flash" size="22">
+        <div>
+          <button type="button" id="btn-gemini-salvar" class="primario" data-ia="gemini">Salvar e testar</button>
+          <button type="button" id="btn-gemini-remover" data-ia="gemini">Remover</button>
+        </div>
+      </div>
+      <div class="chave-ia">
+        <b>ChatGPT</b>
+        <p class="mini">Chave em <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com/api-keys</a></p>
+        <input id="chatgpt-chave" type="password" autocomplete="off" placeholder="cole a chave do ChatGPT">
+        <input id="chatgpt-modelo" placeholder="gpt-4.1-mini" size="22">
+        <div>
+          <button type="button" id="btn-chatgpt-salvar" class="primario" data-ia="chatgpt">Salvar e testar</button>
+          <button type="button" id="btn-chatgpt-remover" data-ia="chatgpt">Remover</button>
+        </div>
+      </div>
+      <div class="chave-ia">
+        <b>Claude</b>
+        <p class="mini">Chave em <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a></p>
+        <input id="claude-chave" type="password" autocomplete="off" placeholder="cole a chave do Claude">
+        <input id="claude-modelo" placeholder="claude-sonnet-4-5" size="22">
+        <div>
+          <button type="button" id="btn-claude-salvar" class="primario" data-ia="claude">Salvar e testar</button>
+          <button type="button" id="btn-claude-remover" data-ia="claude">Remover</button>
+        </div>
+      </div>
     </div>
-    <label><input type="checkbox" id="gemini-ok"> Autorizo o envio dos dados deste caso ao Gemini da parceria institucional</label>
-    <div>
-      <button id="btn-gemini-salvar" class="primario">Salvar e testar</button>
-      <button id="btn-gemini-remover">Remover chave deste computador</button>
-      <span id="gemini-info" class="nota"></span>
-    </div>
-    <details class="avancado">
-      <summary>Opções avançadas (modelo e Vertex — só se a TI pedir)</summary>
-      <label>Modelo preferido <input id="gemini-modelo" placeholder="gemini-3.8-flash" size="28"></label>
-      <label>Endpoint Vertex (deixe em branco se usar o AI Studio)<br>
-        <input id="gemini-endpoint" size="70" placeholder="https://generativelanguage.googleapis.com/v1beta"></label>
-      <button type="button" id="btn-gemini-teste">Só testar conexão (sem salvar de novo)</button>
-    </details>
+    <p id="gemini-info" class="nota"></p>
+    <p id="nuvem-info" class="nota"></p>
   </div>
 
   <div class="cartao" id="ia-anexos">
     <h3>Boletim, relatório e outros documentos</h3>
-    <p class="nota">Anexe aqui o BO, o relatório de investigação, ofício, mandado ou outro texto. O programa lê neste computador e usa na análise preliminar e no rascunho de relatório. Se o Gemini estiver autorizado, trechos desses documentos também vão na pergunta — senão, nada sai da máquina.</p>
+    <p class="nota">Anexe aqui o BO, o relatório de investigação, ofício, mandado ou outro texto. O programa lê neste computador e usa na análise preliminar. Se você escolher Gemini, ChatGPT ou Claude no chat, trechos desses documentos também vão na pergunta.</p>
     <label>Este arquivo é
       <select id="ia-doc-papel">
         <option value="boletim">Boletim de ocorrência</option>
@@ -320,13 +309,14 @@
 
   <div class="cartao">
     <h3>Perguntar sobre o caso</h3>
-    <p class="nota">Sem modelo: responde com a análise já calculada. Ollama: redige neste computador. Gemini: redige na nuvem da parceria (os dados desta pergunta saem da máquina).</p>
+    <p class="nota">Sem modelo: responde com a análise já calculada. Ollama: redige neste computador. Gemini, ChatGPT ou Claude: redigem na nuvem (os dados desta pergunta saem da máquina). Marque a caixa abaixo para a IA local ir aprendendo com essas respostas.</p>
     <button id="btn-modelos">Verificar modelos</button>
     <select id="ia-modelo"><option value="">(análise local — sem nuvem)</option></select>
     <span id="ia-info" class="nota"></span>
     <div><label><input type="radio" name="ia-alvo" value="mov" checked> Movimentações (filtros da lista)</label>
          <label><input type="radio" name="ia-alvo" value="doc"> Documento PDF <select id="ia-doc"></select></label>
-         <label><input type="checkbox" id="ia-conh" checked> usar base de conhecimento local</label>
+         <label><input type="checkbox" id="ia-conh" checked> usar o que a IA local já aprendeu</label>
+         <label><input type="checkbox" id="ia-aprender" checked> guardar resposta da nuvem para a IA local aprender</label>
          <label><input type="checkbox" id="ia-gerar" checked> atualizar a análise automática a cada pergunta</label></div>
     <div id="ia-chat" class="chat"></div>
     <div class="chat-composer">
@@ -340,9 +330,9 @@
 
 <section id="aba-conhecimento" class="aba">
   <h2>Aprimorar a IA com novos documentos (100% local)</h2>
-  <p class="nota">O modelo não é re-treinado. A cada pergunta, o programa busca nesta base os trechos mais relevantes e os envia junto ao Ollama local. Inclua manuais, leiautes, normas, modelos de relatório e exemplos <b>anonimizados</b>. Documentos marcados "deste caso" só valem para o caso selecionado.</p>
+  <p class="nota">O modelo não é re-treinado. A cada pergunta, o programa busca nesta base os trechos mais relevantes e os exemplos das IAs pagas já usadas — assim a IA local precisa cada vez menos da nuvem. Inclua manuais, leiautes, normas, modelos de relatório e exemplos <b>anonimizados</b>. Documentos marcados "deste caso" só valem para o caso selecionado.</p>
   <div class="cartao">
-    <label>Categoria <select id="k-cat"><option>referencia</option><option>norma</option><option>leiaute</option><option>modelo_relatorio</option><option>glossario</option><option>exemplo_anonimizado</option></select></label>
+    <label>Categoria <select id="k-cat"><option>referencia</option><option>norma</option><option>leiaute</option><option>modelo_relatorio</option><option>glossario</option><option>exemplo_anonimizado</option><option>exemplo_ia_paga</option></select></label>
     <label><input type="checkbox" id="k-caso"> somente deste caso</label>
     <input type="file" id="k-arquivo" accept=".txt,.md,.csv,.pdf"> <button id="btn-k-enviar" class="primario">Adicionar à base</button>
   </div>

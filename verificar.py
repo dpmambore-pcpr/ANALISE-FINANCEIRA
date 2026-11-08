@@ -32,11 +32,14 @@ def main():
                                                   "; bloqueados (nuvem): " + ", ".join(m["bloqueados_nuvem"]) if m["bloqueados_nuvem"] else ""))
     g = m.get("gemini") or {}
     if g.get("configurado"):
-        print("Gemini (parceria): configurado (%s), envio %s" % (
-            g.get("chave_mascarada") or g.get("origem") or "sim",
-            "autorizado" if g.get("confirmado") else "não autorizado"))
+        print("Gemini: configurado (%s)" % (g.get("chave_mascarada") or g.get("origem") or "sim"))
     else:
-        print("Gemini (parceria): desligado (opcional)")
+        print("Gemini: desligado (opcional)")
+    for p, s in (m.get("nuvem") or {}).items():
+        if s.get("configurado"):
+            print("%s: configurado (%s)" % (s.get("rotulo") or p, s.get("chave_mascarada") or "sim"))
+        else:
+            print("%s: desligado (opcional)" % (s.get("rotulo") or p))
     print("\nTestes automatizados (dados fictícios):")
     suite = unittest.defaultTestLoader.discover(os.path.join(RAIZ, "testes"), pattern="test_*.py", top_level_dir=os.path.join(RAIZ, "testes"))
     r = unittest.TextTestRunner(verbosity=1).run(suite)

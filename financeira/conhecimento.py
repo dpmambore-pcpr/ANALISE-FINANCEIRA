@@ -119,6 +119,24 @@ def buscar(b, consulta, caso_id=None, limite=5):
     return sorted([ln for ln in linhas if ln["pont"] < 0], key=lambda x: x["pont"])[:limite]
 
 
+def aprender_da_nuvem(b, caso_id, usuario, pergunta, resposta, provedor):
+    """Guarda a resposta da IA paga como exemplo para a IA local nas próximas perguntas."""
+    pergunta = (pergunta or "").strip()
+    resposta = (resposta or "").strip()
+    if not pergunta or not resposta:
+        return None
+    obs = "exemplo automático da IA %s — a IA local usa nas próximas perguntas" % provedor
+    cid = adicionar_correcao(b, None, pergunta[:2000], resposta[:8000], obs, usuario)
+    titulo = "Exemplo %s — %s" % (provedor, pergunta[:80])
+    texto = ("Pergunta do analista:\n%s\n\nResposta da IA %s (exemplo para a IA local; "
+             "confira os números no programa):\n%s" % (pergunta[:2000], provedor, resposta[:6000]))
+    try:
+        adicionar(b, titulo, texto, "exemplo_ia_paga", None, usuario)
+    except ValueError:
+        pass
+    return cid
+
+
 def adicionar_correcao(b, caso_id, pergunta, resposta_revisada, observacao, usuario):
     if not pergunta.strip() or not resposta_revisada.strip():
         raise ValueError("Informe a pergunta e a resposta revisada.")

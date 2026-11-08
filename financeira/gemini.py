@@ -98,8 +98,7 @@ def status(pasta):
     c = configuracao(pasta)
     c.pop("chave", None)
     c["modelos"] = list(MODELOS_PADRAO)
-    c["aviso"] = ("Gemini envia trechos do caso (totais, amostra de lançamentos, texto de BO/relatório) aos "
-                  "servidores do Google. Use só com autorização da unidade e chave da parceria institucional. "
+    c["aviso"] = ("Gemini envia trechos do caso aos servidores do Google. Cole a chave e use no chat. "
                   "A análise preliminar automática continua neste computador.")
     return c
 
@@ -128,10 +127,12 @@ def salvar(pasta, usuario, chave=None, modelo=None, endpoint=None, confirmado=No
             atual["endpoint"] = ep.rstrip("/")
         else:
             atual.pop("endpoint", None)
-    if confirmado is not None:
+    if confirmado is None:
+        atual["confirmado"] = True
+    else:
         atual["confirmado"] = bool(confirmado)
     if not atual.get("confirmado") and not os.environ.get("ANALISE_GEMINI_CHAVE"):
-        raise ErroIA("Marque a autorização de envio dos dados do caso ao Gemini (parceria institucional).")
+        raise ErroIA("Para usar o Gemini, salve a chave (os dados da pergunta saem deste computador).")
     if not ((atual.get("chave") or os.environ.get("ANALISE_GEMINI_CHAVE") or "").strip()):
         raise ErroIA("Informe a chave da API do Gemini (ou defina ANALISE_GEMINI_CHAVE).")
     atual["atualizado_em"] = util.agora_iso()

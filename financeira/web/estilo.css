@@ -395,6 +395,37 @@ ol.fila-arqs button { margin-left: 8px; }
   color: #fff;
   box-shadow: 0 0 0 2px var(--ouro);
 }
+.grafo-org-in {
+  position: absolute; top: 10px; left: 108px; right: 56px; z-index: 3;
+  margin: 0;
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center;
+  background: rgba(11, 20, 36, .86);
+  border: 1px solid rgba(201, 163, 90, .4);
+  border-radius: 999px;
+  padding: 6px 10px;
+  pointer-events: auto;
+}
+.grafo-org-in .org-btn {
+  background: transparent;
+  color: #e8eef7;
+  border: 1px solid rgba(232, 238, 247, .28);
+  padding: 5px 10px;
+  font-size: 12.5px;
+}
+.grafo-org-in .org-btn:hover { border-color: var(--ouro); color: var(--ouro-claro); }
+.grafo-org-in .org-btn.ativa {
+  background: var(--ouro);
+  color: #0b1424;
+  box-shadow: none;
+}
+.grafo-org-in .org-valores { color: #d5deeb; font-size: 12px; margin-left: 4px; }
+.grafo-org-in select {
+  background: #0b1424;
+  color: #e8eef7;
+  border: 1px solid rgba(201, 163, 90, .4);
+  border-radius: 6px;
+  padding: 3px 6px;
+}
 .grafo-detalhe.caixa-seta { border-color: rgba(201, 163, 90, .7); max-width: 460px; }
 .grafo-ferramentas {
   position: absolute; top: 12px; right: 12px; z-index: 2;
@@ -409,15 +440,29 @@ ol.fila-arqs button { margin-left: 8px; }
   border-radius: 8px;
 }
 .grafo-legenda {
-  position: absolute; top: 12px; left: 12px; z-index: 2;
+  position: absolute; top: 10px; left: 10px; z-index: 3;
   max-width: 280px;
   background: rgba(11, 20, 36, .88);
   color: #e8eef7;
   border: 1px solid rgba(201, 163, 90, .35);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   font-size: 12.5px;
   backdrop-filter: blur(6px);
+}
+.grafo-legenda.retraida { padding: 4px 6px; max-width: none; }
+.grafo-legenda.retraida .legenda-corpo { display: none; }
+.legenda-toggle {
+  display: block;
+  width: 100%;
+  background: transparent;
+  color: var(--ouro-claro);
+  border: 0;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12.5px;
+  text-align: left;
+  padding: 2px 4px;
 }
 .grafo-legenda i {
   display: inline-block;
@@ -498,6 +543,26 @@ ol.fila-arqs button { margin-left: 8px; }
 }
 .gemini-chave-linha { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .gemini-chave-linha input { flex: 1; min-width: 220px; }
+.chaves-ia {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+.chave-ia {
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+.chave-ia input[type="password"], .chave-ia input[type="text"] {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 6px 0;
+  padding: 6px 8px;
+}
+.chave-ia .mini { margin: 4px 0 0; }
 details.cartao > summary, details.avancado > summary {
   cursor: pointer;
   font-weight: 600;
@@ -510,4 +575,5 @@ details.avancado { margin-top: 10px; color: var(--texto-suave); }
   main { padding: 12px; }
   .duas { grid-template-columns: 1fr; }
   .grafo-viewport { height: 60vh; }
+  .grafo-org-in { left: 8px; right: 8px; top: 48px; border-radius: 12px; }
 }

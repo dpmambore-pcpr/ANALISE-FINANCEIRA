@@ -1,7 +1,7 @@
-"""Consulta ao Ollama LOCAL e, opcionalmente, ao Gemini da parceria institucional.
+"""Consulta à IA local (análise automática e Ollama) e, opcionalmente, Gemini, ChatGPT ou Claude.
 
 Ollama: endereço fixo em 127.0.0.1, proxies ignorados, modelos de nuvem recusados.
-Gemini: só envia se houver chave, confirmação e o analista escolher um modelo gemini:.
+Gemini/ChatGPT/Claude: só envia se houver chave e o analista escolher o serviço no chat.
 A IA recebe números já calculados pelo programa e não deve calcular livremente.
 """
 
@@ -61,8 +61,8 @@ def modelos(porta=None, pasta=None):
         ollama = {"modelos": [], "bloqueados_nuvem": [], "versao": None, "endereco": url_base(porta),
                   "disponivel": False, "erro": str(e),
                   "lembrete": "Ollama não está no ar. A análise preliminar e o chat determinístico funcionam mesmo assim. "
-                              "Para texto generativo local, inicie o Ollama; para Gemini, configure a chave da parceria."}
-        return _com_gemini(ollama, pasta)
+                              "Para texto generativo local, inicie o Ollama; para Gemini, ChatGPT ou Claude, cole a chave."}
+        return _com_nuvem(ollama, pasta)
     locais, nuvem = [], []
     for m in dados.get("models", []):
         (nuvem if eh_nuvem(m) else locais).append(m.get("name") or m.get("model"))
@@ -75,21 +75,42 @@ def modelos(porta=None, pasta=None):
               "disponivel": True,
               "lembrete": "Confirme que o servidor Ollama foi iniciado com OLLAMA_NO_CLOUD=1 ou disable_ollama_cloud=true "
                           "e teste com a internet desconectada."}
-    return _com_gemini(ollama, pasta)
+    return _com_nuvem(ollama, pasta)
 
 
-def _com_gemini(ollama, pasta):
-    from . import gemini as gem
-    st = gem.status(pasta)
+def _modelos_prontos(st, padrao=None):
     mods = []
-    if st.get("configurado") and st.get("confirmado"):
-        mods = list(st.get("modelos") or gem.MODELOS_PADRAO)
+    if st.get("configurado") and st.get("confirmado", True):
+        mods = list(st.get("modelos") or padrao or [])
         pref = (st.get("modelo") or "").strip()
         if pref and pref not in mods:
             mods.insert(0, pref)
     st["modelos"] = mods
-    ollama["gemini"] = st
+    return st
+
+
+def _com_nuvem(ollama, pasta):
+    from . import gemini as gem
+    from . import nuvem
+    ollama["gemini"] = _modelos_prontos(gem.status(pasta), gem.MODELOS_PADRAO)
+    ollama["nuvem"] = {}
+    for p, st in nuvem.status_todos(pasta).items():
+        ollama["nuvem"][p] = _modelos_prontos(st, st.get("modelos"))
     return ollama
+
+
+def _eh_pago(modelo):
+    m = str(modelo or "")
+    return m.startswith("gemini:") or m.startswith("chatgpt:") or m.startswith("claude:")
+
+
+def _guardar_exemplo(b, caso_id, usuario, pergunta, texto, modo):
+    if modo not in ("gemini", "chatgpt", "claude"):
+        return
+    try:
+        conhecimento.aprender_da_nuvem(b, caso_id, usuario, pergunta, texto, modo)
+    except ValueError:
+        pass
 
 
 def prompt_sistema():
@@ -201,7 +222,7 @@ def _preparar(b, caso_id, pergunta, filtros=None, fonte_id=None, usar_conhecimen
             refs = [{"titulo": t["titulo"], "doc_id": t["doc_id"]} for t in trechos]
         corr = conhecimento.buscar_correcoes(b, pergunta, caso_id)
         if corr:
-            extra += "\n\nEXEMPLOS DE RESPOSTAS REVISADAS PELA EQUIPE (siga o estilo e os cuidados):\n" + "\n---\n".join(
+            extra += "\n\nEXEMPLOS DE RESPOSTAS JÁ FEITAS NESTE COMPUTADOR (IA paga ou revisão da equipe; siga o estilo):\n" + "\n---\n".join(
                 "Pergunta: %s\nResposta revisada: %s" % (c["pergunta"], c["resposta_revisada"]) for c in corr)
     sistema = prompt_sistema() + ("\n\nUse apenas os números calculados fornecidos. Se precisar de outro cálculo, "
                                   "diga qual filtro o analista deve aplicar no programa. "
@@ -217,22 +238,36 @@ def _preparar(b, caso_id, pergunta, filtros=None, fonte_id=None, usar_conhecimen
 
 
 def perguntar(b, caso_id, usuario, modelo, pergunta, filtros=None, fonte_id=None, usar_conhecimento=True, porta=None,
-              incluir_analise=True, historico=None, pasta=None):
+              incluir_analise=True, historico=None, pasta=None, aprender=True):
     if not modelo:
-        raise ErroIA("Escolha um modelo (Ollama local, Gemini da parceria, ou deixe em branco para a análise automática).")
+        raise ErroIA("Escolha um modelo (análise local, Ollama, Gemini, ChatGPT ou Claude).")
     mensagens, alcance, refs, ctx = _preparar(b, caso_id, pergunta, filtros, fonte_id, usar_conhecimento,
                                               incluir_analise, historico)
+    modo, nome, texto, aviso = None, None, None, None
     if str(modelo).startswith("gemini:"):
         from . import gemini as gem
         nome = modelo.split("gemini:", 1)[-1]
         texto, meta = gem.gerar(pasta, nome, mensagens[0]["content"], mensagens)
         alcance.update(meta)
+        modo, aviso = "gemini", ("Resposta gerada pelo Gemini: os dados desta pergunta saíram deste computador. "
+                                 "Pode conter erros. Confira fonte, página, linha e cálculos.")
+    elif str(modelo).startswith("chatgpt:") or str(modelo).startswith("claude:"):
+        from . import nuvem
+        provedor = "chatgpt" if str(modelo).startswith("chatgpt:") else "claude"
+        nome = modelo.split(":", 1)[-1]
+        texto, meta = nuvem.gerar(pasta, provedor, nome, mensagens[0]["content"], mensagens)
+        alcance.update(meta)
+        modo = provedor
+        aviso = ("Resposta gerada pelo %s: os dados desta pergunta saíram deste computador. "
+                 "Pode conter erros. Confira fonte, página, linha e cálculos." % nuvem.PROVEDORES[provedor]["rotulo"])
+    if modo:
         auditoria.registrar(b, caso_id, usuario, "pergunta_ia",
-                            {"provedor": "gemini", "modelo": nome, "pergunta": pergunta, "alcance": alcance,
+                            {"provedor": modo, "modelo": nome, "pergunta": pergunta, "alcance": alcance,
                              "sha256_contexto": util.sha256_bytes(ctx.encode("utf-8")), "referencias": refs})
-        return {"resposta": texto, "alcance": alcance, "referencias": refs, "modelo": "gemini:" + nome, "modo": "gemini",
-                "aviso": "Resposta gerada pelo Gemini (nuvem Google, parceria institucional): os dados desta pergunta "
-                         "saíram deste computador. Pode conter erros. Confira fonte, página, linha e cálculos."}
+        if aprender:
+            _guardar_exemplo(b, caso_id, usuario, pergunta, texto, modo)
+        return {"resposta": texto, "alcance": alcance, "referencias": refs, "modelo": "%s:%s" % (modo, nome),
+                "modo": modo, "aviso": aviso}
     disp = modelos(porta, pasta)
     if modelo not in disp["modelos"]:
         raise ErroIA("Modelo %r não está entre os modelos locais permitidos. Modelos de nuvem do Ollama são recusados. "
@@ -271,8 +306,8 @@ def listar_conversas(b, caso_id):
 
 def conversar(b, caso_id, usuario, pergunta, modelo=None, filtros=None, fonte_id=None,
               usar_conhecimento=True, conversa_id=None, hipotese_crime=None, vitimas=None,
-              investigados=None, porta=None, gerar_analise=True, pasta=None):
-    """Chat do caso: Gemini (se escolhido), Ollama local, ou análise preliminar sem modelo."""
+              investigados=None, porta=None, gerar_analise=True, pasta=None, aprender=True):
+    """Chat do caso: Gemini/ChatGPT/Claude (se escolhido), Ollama local, ou análise preliminar sem modelo."""
     auditoria.exigir(b, caso_id, usuario, "analista")
     pergunta = (pergunta or "").strip()
     cid = _garantir_conversa(b, caso_id, usuario, conversa_id)
@@ -290,28 +325,30 @@ def conversar(b, caso_id, usuario, pergunta, modelo=None, filtros=None, fonte_id
     try:
         if modelo:
             r = perguntar(b, caso_id, usuario, modelo, pergunta or "Faça a análise preliminar do caso.",
-                          filtros, fonte_id, usar_conhecimento, porta, True, hist, pasta)
+                          filtros, fonte_id, usar_conhecimento, porta, True, hist, pasta, aprender)
             texto, alcance, refs, modo = r["resposta"], r["alcance"], r["referencias"], r.get("modo") or "ollama"
             aviso = r["aviso"]
         else:
             raise ErroIA("sem modelo")
     except ErroIA as e:
-        if modelo and str(modelo).startswith("gemini:"):
+        if _eh_pago(modelo):
             raise
         texto = analise.responder_local(relatorio, pergunta)
         alcance = {"modo": "analise_local", "motivo_ollama": str(e)}
         refs, modo = [], "local"
         aviso = ("Resposta da análise preliminar automática (sem modelo generativo). "
-                 "Para texto mais livre: Ollama neste computador ou Gemini da parceria institucional. " + AVISO_LOCAL)
+                 "Para texto mais livre: Ollama neste computador, ou cole a chave do Gemini, ChatGPT ou Claude. "
+                 + AVISO_LOCAL)
         aviso_extra = str(e)
     agora = util.agora_iso()
+    pagos = ("ollama", "gemini", "chatgpt", "claude")
     if pergunta:
         b.x("INSERT INTO ia_mensagens(conversa_id, papel, texto, alcance_json, modelo, em) VALUES (?,?,?,?,?,?)",
             (cid, "usuario", pergunta, None, None, agora))
     b.x("INSERT INTO ia_mensagens(conversa_id, papel, texto, alcance_json, modelo, em) VALUES (?,?,?,?,?,?)",
-        (cid, "assistente", texto, util.json_dump(alcance), modelo if modo in ("ollama", "gemini") else "analise-local", agora))
+        (cid, "assistente", texto, util.json_dump(alcance), modelo if modo in pagos else "analise-local", agora))
     return {"resposta": texto, "alcance": alcance, "referencias": refs,
-            "modelo": modelo if modo in ("ollama", "gemini") else None,
+            "modelo": modelo if modo in pagos else None,
             "modo": modo, "conversa_id": cid, "historico": historico_conversa(b, caso_id, cid),
             "analise": {"hipotese_crime": (relatorio or {}).get("hipotese_crime"),
                         "n_achados": len((relatorio or {}).get("achados") or [])},

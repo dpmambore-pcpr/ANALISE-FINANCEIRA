@@ -18,7 +18,7 @@ from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import (VERSAO, adaptadores, analise, auditoria, conciliacao, conhecimento, documentos, fontes, gemini, grafo, ia,
-               pesquisa, relatorio, rif, servico, util)
+               nuvem, pesquisa, relatorio, rif, servico, util)
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
@@ -215,10 +215,13 @@ class Manipulador(BaseHTTPRequestHandler):
 @rota("GET", r"/api/estado")
 def r_estado(h, q):
     g = gemini.status(h.app.pasta)
+    nv = {p: {"configurado": s["configurado"], "chave_mascarada": s.get("chave_mascarada") or ""}
+          for p, s in nuvem.status_todos(h.app.pasta).items()}
     h.enviar(200, {"versao": VERSAO, "ocr": documentos.ocr_disponivel(), "ia_endereco": ia.url_base(),
                    "pasta_dados": h.app.pasta, "fts": h.app.b.fts,
                    "gemini": {"configurado": g["configurado"], "confirmado": g["confirmado"],
-                              "chave_mascarada": g.get("chave_mascarada") or ""}})
+                              "chave_mascarada": g.get("chave_mascarada") or ""},
+                   "nuvem": nv})
 
 
 @rota("GET", r"/api/casos")
@@ -694,6 +697,24 @@ def r_gemini_teste(h, q):
     h.enviar(200, gemini.testar(h.app.pasta))
 
 
+@rota("GET", r"/api/ia/nuvem/(\w+)")
+def r_nuvem_get(h, q, p):
+    h.enviar(200, nuvem.status(h.app.pasta, p))
+
+
+@rota("POST", r"/api/ia/nuvem/(\w+)")
+def r_nuvem_post(h, q, p):
+    d = h.json_corpo()
+    h.enviar(200, nuvem.salvar(
+        h.app.pasta, h.usuario, p, chave=d.get("chave"), modelo=d.get("modelo"),
+        remover=bool(d.get("remover"))))
+
+
+@rota("POST", r"/api/ia/nuvem/(\w+)/teste")
+def r_nuvem_teste(h, q, p):
+    h.enviar(200, nuvem.testar(h.app.pasta, p))
+
+
 @rota("GET", r"/api/casos/(\d+)/contexto")
 def r_contexto_get(h, q, c):
     h.enviar(200, analise.contexto(h.app.b, h.ler_caso(c)))
@@ -750,7 +771,8 @@ def r_ia(h, q, c):
         modelo=d.get("modelo") or None, filtros=d.get("filtros"), fonte_id=d.get("fonte_id") or None,
         usar_conhecimento=bool(d.get("usar_conhecimento", True)), conversa_id=d.get("conversa_id") or None,
         hipotese_crime=d.get("hipotese_crime"), vitimas=d.get("vitimas"), investigados=d.get("investigados"),
-        gerar_analise=bool(d.get("gerar_analise", True)), pasta=h.app.pasta)
+        gerar_analise=bool(d.get("gerar_analise", True)), pasta=h.app.pasta,
+        aprender=bool(d.get("aprender", True)))
     h.enviar(200, {"tarefa": tid})
 
 

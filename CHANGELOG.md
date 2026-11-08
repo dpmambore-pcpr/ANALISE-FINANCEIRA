@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 3.4.8
+- **Grafo:** os botões Pirâmide, Circular, Torre e Automático ficam **em cima do desenho**. A caixa de cores no canto recolhe e expande.
+- **Filtro de valores:** em Movimentações e no grafo, o programa lista cada valor do extrato para marcar.
+- **IA simples:** cole a chave do Gemini, ChatGPT ou Claude e use no chat. Sem jargão de TI nem Vertex. A análise local e o Ollama continuam.
+- **IA local aprende:** as respostas da nuvem ficam neste computador e entram nas próximas perguntas da IA local.
+
 ## 3.4.7
 - **Gemini:** o modelo padrão passa a ser `gemini-3.8-flash`. O Google deixou de aceitar `gemini-2.5-flash` para chaves novas; se o teste ou o chat receberem esse recado, o programa tenta o modelo novo sozinho e grava a troca.
 

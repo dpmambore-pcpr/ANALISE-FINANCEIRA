@@ -16,6 +16,7 @@ from . import identificadores, protocolo, util
 # chave -> (rótulo, tipo, expressão de valor, expressão de rótulo)
 FACETAS = [
     ("natureza", "Natureza", "l", "COALESCE(l.natureza,'(sem natureza)')", None),
+    ("valor", "Valor", "l", "COALESCE(CAST(l.valor_centavos AS TEXT),'(sem valor)')", None),
     ("situacao", "Situação na importação", "l", "l.situacao", None),
     ("pessoa_doc", "CPF/CNPJ (titular ou contraparte)", "u_doc", None, None),
     ("pessoa_nome", "Nome (titular ou contraparte)", "u_nome", None, None),
@@ -102,6 +103,14 @@ def descrever_filtros(b, filtros):
                 vals = nomes
             elif chave in ("pessoa_doc", "titular_doc", "cp_doc"):
                 vals = [util.formatar_documento(v) for v in vals]
+            elif chave == "valor":
+                fmt = []
+                for v in vals:
+                    try:
+                        fmt.append(util.formatar_centavos(int(v)))
+                    except (TypeError, ValueError):
+                        fmt.append(v)
+                vals = fmt
             out.append("%s: %s" % (rotulo, "; ".join(str(v) for v in vals)))
     if f.get("data_ini") or f.get("data_fim"):
         out.append("Período: %s a %s" % (f.get("data_ini") or "início", f.get("data_fim") or "fim"))
@@ -147,6 +156,11 @@ def facetas(b, caso_id, filtros, limite=5000):
                 rot = remessas.get(r["v"], r["v"])
             elif chave in ("pessoa_doc", "titular_doc", "cp_doc") and r["v"] and util.so_digitos(r["v"]) == r["v"]:
                 rot = util.formatar_documento(r["v"])
+            elif chave == "valor":
+                try:
+                    rot = util.formatar_centavos(int(r["v"]))
+                except (TypeError, ValueError):
+                    rot = r["v"]
             valores.append({"valor": r["v"], "rotulo": rot, "n": r["n"], "soma": r["s"]})
         res.append({"chave": chave, "rotulo": rotulo, "valores": valores, "truncado": len(valores) >= limite})
     return res

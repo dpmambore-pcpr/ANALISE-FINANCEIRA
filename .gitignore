@@ -2,6 +2,8 @@
 dados/
 dados_*/
 **/gemini.json
+**/chatgpt.json
+**/claude.json
 *.sqlite
 *.sqlite3
 *.db

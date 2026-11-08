@@ -25,6 +25,13 @@ class TestPesquisa(CasoTeste):
         self.assertEqual({v["valor"] for v in facs["banco"]["valores"]}, {"BANCO FICTICIO", "BANCO EXEMPLO"})
         self.assertIn("alfa@exemplo.invalid", {v["valor"] for v in facs["pix"]["valores"]})
         self.assertEqual({v["valor"] for v in facs["mes"]["valores"]}, {"2026-03"})
+        vals = {v["valor"] for v in facs["valor"]["valores"]}
+        self.assertIn("60000", vals)
+        self.assertTrue(any(v["rotulo"].startswith("R$") for v in facs["valor"]["valores"]))
+        t = pesquisa.totais(self.app.b, self.caso, {"valor": ["60000"]})
+        self.assertEqual((t["creditos"], t["n_creditos"]), (60000, 1))
+        desc = pesquisa.descrever_filtros(self.app.b, {"valor": ["60000"]})
+        self.assertTrue(any("R$ 600,00" in x for x in desc))
 
     def test_selecao_multipla_e_contagens(self):
         importar_dois_extratos(self)
