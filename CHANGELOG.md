@@ -1,5 +1,8 @@
 # Histórico de versões
 
+## 3.4.10
+- **Grafo em tela cheia:** botão **Tela cheia** no mapa (e acima dele) amplia o gráfico na janela inteira. Esc ou **Sair** volta ao tamanho normal.
+
 ## 3.4.9
 - **Valores das transferências:** em Movimentações e no grafo, lista visível de cada quantia do extrato com **quantos lançamentos** têm aquele valor (ex.: R$ 50,00 — 12 lançamentos). Marque para filtrar.
 - **IA no navegador:** botões Abrir no ChatGPT / Claude / Gemini copiam o caso e abrem o site em que você já entra. Não precisa de chave de API (a assinatura do site é outra coisa). Dá para colar a resposta de volta para a IA local aprender.

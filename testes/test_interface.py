@@ -18,7 +18,7 @@ def _ler(nome):
 
 class TestInterfaceArquivos(unittest.TestCase):
     def test_versao(self):
-        self.assertEqual(VERSAO, "3.4.9")
+        self.assertEqual(VERSAO, "3.4.10")
 
     def test_html_fluxo_simples(self):
         html = _ler("index.html")
@@ -57,6 +57,8 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn('id="ia-doc-papel"', html)
         self.assertIn("O mapa monta sozinho", html)
         self.assertIn("Pirâmide", html)
+        self.assertIn('id="btn-grafo-tela"', html)
+        self.assertIn("Tela cheia", html)
         self.assertNotIn("Gerar grafo", html)
 
     def test_js_auto_grafo_e_analise(self):
@@ -82,6 +84,9 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn("data-layout=\"torre\"", js)
         self.assertIn('id="gf-valores"', js)
         self.assertIn("grafo-legenda-btn", js)
+        self.assertIn("alternarTelaCheia", js)
+        self.assertIn("sairTelaCheia", js)
+        self.assertIn("gz-tela", js)
         self.assertIn("pintarValoresExtrato", js)
         self.assertIn("abrirIANavegador", js)
         self.assertIn("/api/casos/${exigirCaso()}/ia/prompt", js)
@@ -116,6 +121,7 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn("ol.passos", css)
         self.assertIn(".org-btn", css)
         self.assertIn(".grafo-org-in", css)
+        self.assertIn(".grafo-viewport.tela-cheia", css)
         self.assertIn(".grafo-legenda.retraida", css)
         self.assertIn(".chaves-ia", css)
         self.assertIn(".lista-valores", css)

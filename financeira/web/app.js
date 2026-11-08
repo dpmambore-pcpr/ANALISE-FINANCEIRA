@@ -8,7 +8,8 @@ const estado = { caso: null, filtros: {}, facetas: [], fontes: [], geralSel: {},
   gFiltros: {}, conversaId: null, grafoCtrl: null, grafoPos: {}, grafoOff: null, grafoDados: null,
   grafoLayout: localStorage.getItem("grafoLayout") || "torre",
   grafoValores: localStorage.getItem("grafoValores") || "todas",
-  grafoLegenda: localStorage.getItem("grafoLegenda") !== "0" };
+  grafoLegenda: localStorage.getItem("grafoLegenda") !== "0",
+  grafoTelaCheia: false };
 
 function usuario() { return $("#usuario").value.trim(); }
 
@@ -84,6 +85,7 @@ $("#btn-nav-mais").onclick = (e) => {
 };
 function abrirAba(nome) {
   if (!nome) return;
+  if (nome !== "grafo" && estado.grafoTelaCheia) sairTelaCheia();
   $$("#abas [data-aba]").forEach((b) => b.classList.toggle("ativa", b.dataset.aba === nome));
   $("#btn-nav-mais").classList.toggle("ativa", !ABAS_PRINCIPAIS.has(nome));
   $("#nav-mais-painel").classList.add("oculto");
@@ -1318,7 +1320,7 @@ function desenharGrafo(g) {
   area.innerHTML = `<div class="grafo-viewport" id="grafo-viewport">
       ${htmlOrgGrafo()}
       ${htmlLegendaGrafo(g)}
-      <div class="grafo-ferramentas"><button type="button" id="gz-mais" title="Aproximar">+</button><button type="button" id="gz-menos" title="Afastar">−</button><button type="button" id="gz-reset" title="Ajustar">⊡</button><button type="button" id="gz-png" title="Baixar PNG">PNG</button></div>
+      <div class="grafo-ferramentas"><button type="button" id="gz-mais" title="Aproximar">+</button><button type="button" id="gz-menos" title="Afastar">−</button><button type="button" id="gz-reset" title="Ajustar">⊡</button><button type="button" id="gz-png" title="Baixar PNG">PNG</button><button type="button" id="gz-tela" class="gz-tela" title="Ver o mapa na tela inteira">Tela cheia</button></div>
       <div class="grafo-detalhe" id="grafo-detalhe">Clique em um círculo ou numa seta para ver os valores.</div>
       ${svg}
     </div>
@@ -1329,6 +1331,8 @@ function desenharGrafo(g) {
   $("#gz-menos").onclick = () => estado.grafoCtrl.menos();
   $("#gz-reset").onclick = () => estado.grafoCtrl.reset();
   if ($("#gz-png")) $("#gz-png").onclick = baixarGrafoPng;
+  if ($("#gz-tela")) $("#gz-tela").onclick = alternarTelaCheia;
+  aplicarTelaCheia();
   const box = $("#grafo-detalhe");
   const mostrarAresta = (a) => {
     $$("#svg-grafo .aresta").forEach((p) => p.classList.toggle("ativa", +p.dataset.i === a.i));
@@ -1372,6 +1376,54 @@ function baixarGrafoPng() {
   img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svg));
 }
 $("#btn-grafo-png").onclick = baixarGrafoPng;
+function rotuloTelaCheia() {
+  return estado.grafoTelaCheia ? "Sair" : "Tela cheia";
+}
+function aplicarTelaCheia() {
+  const vp = $("#grafo-viewport");
+  if (vp) vp.classList.toggle("tela-cheia", !!estado.grafoTelaCheia);
+  document.body.classList.toggle("grafo-em-tela-cheia", !!estado.grafoTelaCheia);
+  const texto = rotuloTelaCheia();
+  const titulo = estado.grafoTelaCheia ? "Voltar ao tamanho normal (Esc)" : "Ver o mapa na tela inteira";
+  ["#gz-tela", "#btn-grafo-tela"].forEach((s) => {
+    const b = $(s);
+    if (!b) return;
+    b.textContent = texto === "Sair" && s === "#btn-grafo-tela" ? "Sair da tela cheia" : texto;
+    b.title = titulo;
+    b.setAttribute("aria-pressed", estado.grafoTelaCheia ? "true" : "false");
+  });
+}
+function sairTelaCheia() {
+  estado.grafoTelaCheia = false;
+  aplicarTelaCheia();
+  if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+}
+function entrarTelaCheia() {
+  if (!$("#grafo-viewport")) {
+    alert("Aguarde o grafo aparecer (ou importe um extrato).");
+    return;
+  }
+  estado.grafoTelaCheia = true;
+  aplicarTelaCheia();
+  const vp = $("#grafo-viewport");
+  if (vp && vp.requestFullscreen) vp.requestFullscreen().catch(() => {});
+}
+function alternarTelaCheia() {
+  if (estado.grafoTelaCheia) sairTelaCheia();
+  else entrarTelaCheia();
+}
+if ($("#btn-grafo-tela")) $("#btn-grafo-tela").onclick = alternarTelaCheia;
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && estado.grafoTelaCheia) sairTelaCheia();
+});
+document.addEventListener("fullscreenchange", () => {
+  if (document.fullscreenElement) return;
+  if (!$("#grafo-viewport")) return;
+  if (estado.grafoTelaCheia) {
+    estado.grafoTelaCheia = false;
+    aplicarTelaCheia();
+  }
+});
 $("#btn-seq").onclick = async () => {
   try {
     const r = await api("POST", `/api/casos/${exigirCaso()}/sequencias`, { inicio: $("#s-inicio").value, janela_dias: $("#s-janela").value, tolerancia_pct: $("#s-tol").value, profundidade: $("#s-prof").value, por_nome: $("#s-nome").checked });
