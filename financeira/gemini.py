@@ -18,7 +18,12 @@ from . import util
 from .ia import ErroIA
 
 ENDPOINT_PADRAO = "https://generativelanguage.googleapis.com/v1beta"
-MODELOS_PADRAO = ("gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro")
+MODELOS_PADRAO = (
+    "gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.0-flash",
+    "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro",
+)
+RE_MODELO_SUGERIDO = re.compile(
+    r"(?:use|using)\s+models/([\w.-]+)|models/(gemini-[\w.-]+)\s+for the latest", re.I)
 NOME_ARQ = "gemini.json"
 
 
@@ -187,6 +192,50 @@ def _nome_modelo(modelo):
     return nome
 
 
+def _juntar_modelos(*listas):
+    out = []
+    for lista in listas:
+        for n in lista or []:
+            n = (n or "").strip()
+            if n and n not in out:
+                out.append(n)
+    return out
+
+
+def _modelo_sugerido_erro(msg, atual):
+    """Se a API disser que o modelo saiu de linha, devolve o substituto indicado."""
+    txt = msg or ""
+    m = RE_MODELO_SUGERIDO.search(txt)
+    if m:
+        nome = (m.group(1) or m.group(2) or "").replace("models/", "").strip()
+        if nome and nome != atual and re.match(r"^[\w.-]{3,80}$", nome):
+            return nome
+    if "no longer available" in txt.lower() and MODELOS_PADRAO[0] != atual:
+        return MODELOS_PADRAO[0]
+    return None
+
+
+def _persistir_modelo(pasta, modelo):
+    if not pasta or os.environ.get("ANALISE_GEMINI_MODELO"):
+        return
+    atual = _ler_arquivo(pasta)
+    if not atual:
+        return
+    try:
+        atual["modelo"] = _nome_modelo(modelo)
+    except ErroIA:
+        return
+    atual["atualizado_em"] = util.agora_iso()
+    tmp = caminho_config(pasta) + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(atual, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, caminho_config(pasta))
+    try:
+        os.chmod(caminho_config(pasta), 0o600)
+    except OSError:
+        pass
+
+
 def _url_gerar(cfg, modelo):
     ep, chave = _endpoint(cfg), cfg["chave"]
     modelo = _nome_modelo(modelo or cfg["modelo"] or MODELOS_PADRAO[0])
@@ -222,13 +271,13 @@ def listar_modelos(pasta):
             if nome.startswith("gemini"):
                 nomes.append(nome)
         if nomes:
-            return nomes
+            return _juntar_modelos(MODELOS_PADRAO, nomes)
     except ErroIA:
         pass
     return out
 
 
-def gerar(pasta, modelo, sistema, mensagens, timeout=180):
+def gerar(pasta, modelo, sistema, mensagens, timeout=180, _retentou=False):
     cfg = configuracao(pasta)
     if not cfg["chave"]:
         raise ErroIA("Gemini não configurado. Cole a chave da parceria na aba IA ou defina ANALISE_GEMINI_CHAVE.")
@@ -251,7 +300,15 @@ def gerar(pasta, modelo, sistema, mensagens, timeout=180):
         "contents": contents,
         "generationConfig": {"temperature": 0.1, "maxOutputTokens": 8192},
     }
-    resp = _req(url, corpo, chave=cfg["chave"], timeout=timeout)
+    try:
+        resp = _req(url, corpo, chave=cfg["chave"], timeout=timeout)
+    except ErroIA as e:
+        alt = None if _retentou else _modelo_sugerido_erro(str(e), modelo)
+        if alt:
+            texto, meta = gerar(pasta, alt, sistema, mensagens, timeout=timeout, _retentou=True)
+            _persistir_modelo(pasta, alt)
+            return texto, meta
+        raise
     if (resp.get("promptFeedback") or {}).get("blockReason"):
         raise ErroIA("Gemini bloqueou o prompt (%s)." % resp["promptFeedback"]["blockReason"])
     cands = resp.get("candidates") or []

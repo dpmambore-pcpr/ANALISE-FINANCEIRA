@@ -1,5 +1,8 @@
 # Histórico de versões
 
+## 3.4.7
+- **Gemini:** o modelo padrão passa a ser `gemini-3.8-flash`. O Google deixou de aceitar `gemini-2.5-flash` para chaves novas; se o teste ou o chat receberem esse recado, o programa tenta o modelo novo sozinho e grava a troca.
+
 ## 3.4.6
 - **Importar vários de uma vez:** RIF (comunicações, envolvidos, ocorrências) e quebra de bancos — escolha ou arraste vários arquivos; todos entram no mesmo caso. O programa pergunta o destino uma vez e importa em seguida. Os pedaços do RIF viram **um único relatório**.
 - **Grafo:** organização em **pirâmide**, **circular**, **torre** (quem enviou à esquerda, quem recebeu à direita) ou **automático**. Setas retas, deslocadas para não se sobrepor; opção de mostrar o valor em todas, só nas maiores, ou ocultar. Clique na seta abre a caixa com origem, destino, valor e quantidade de lançamentos.

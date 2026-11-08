@@ -18,7 +18,7 @@ def _ler(nome):
 
 class TestInterfaceArquivos(unittest.TestCase):
     def test_versao(self):
-        self.assertEqual(VERSAO, "3.4.6")
+        self.assertEqual(VERSAO, "3.4.7")
 
     def test_html_fluxo_simples(self):
         html = _ler("index.html")
@@ -40,6 +40,7 @@ class TestInterfaceArquivos(unittest.TestCase):
         self.assertIn("056-PCPR-000677-20", html)
         self.assertIn("aistudio.google.com/apikey", html)
         self.assertIn("Salvar e testar", html)
+        self.assertIn("gemini-3.8-flash", html)
         self.assertIn("Peça a chave à TI da unidade", html)
         self.assertIn("Boletim, relatório e outros documentos", html)
         self.assertIn('id="ia-doc-soltar"', html)

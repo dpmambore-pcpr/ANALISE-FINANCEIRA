@@ -18,6 +18,7 @@ ENVS = ("ANALISE_GEMINI_CHAVE", "ANALISE_GEMINI_ENDPOINT", "ANALISE_GEMINI_MODEL
 class FalsoGemini(BaseHTTPRequestHandler):
     recebido = []
     falhar = False
+    recusar = None
 
     def log_message(self, *a):
         pass
@@ -34,6 +35,7 @@ class FalsoGemini(BaseHTTPRequestHandler):
         if "/models" in self.path.split("?")[0] and "generateContent" not in self.path:
             self._json({"models": [
                 {"name": "models/gemini-2.5-flash", "supportedGenerationMethods": ["generateContent"]},
+                {"name": "models/gemini-3.8-flash", "supportedGenerationMethods": ["generateContent"]},
                 {"name": "models/outro", "supportedGenerationMethods": ["embedContent"]},
             ]})
             return
@@ -46,6 +48,12 @@ class FalsoGemini(BaseHTTPRequestHandler):
         FalsoGemini.recebido.append({"path": self.path, "dados": dados})
         if FalsoGemini.falhar:
             self._json({"error": {"message": "chave invalida"}}, 403)
+            return
+        if FalsoGemini.recusar and FalsoGemini.recusar in self.path:
+            self._json({"error": {"message": (
+                "This model models/%s is no longer available to new users. "
+                "Please update your code to use models/gemini-3.8-flash for the latest features and improvements."
+            ) % FalsoGemini.recusar}}, 404)
             return
         if "generateContent" in self.path:
             self._json({"candidates": [{"content": {"parts": [{"text": "resposta gemini ficticia"}]}}]})
@@ -76,6 +84,7 @@ class TestGemini(CasoTeste):
     def _falso(self):
         FalsoGemini.recebido = []
         FalsoGemini.falhar = False
+        FalsoGemini.recusar = None
         self.srv = ThreadingHTTPServer(("127.0.0.1", 0), FalsoGemini)
         threading.Thread(target=self.srv.serve_forever, daemon=True).start()
         porta = self.srv.server_address[1]
@@ -114,8 +123,8 @@ class TestGemini(CasoTeste):
     def test_modelos_separa_gemini_do_ollama(self):
         gemini.salvar(self.app.pasta, self.usuario, chave="abc12345xyz", confirmado=True)
         m = ia.modelos(pasta=self.app.pasta)
-        self.assertNotIn("gemini-2.5-flash", m["modelos"])
-        self.assertIn("gemini-2.5-flash", m["gemini"]["modelos"])
+        self.assertNotIn("gemini-3.8-flash", m["modelos"])
+        self.assertIn("gemini-3.8-flash", m["gemini"]["modelos"])
         self.assertTrue(m["gemini"]["configurado"])
 
     def test_perguntar_envia_ao_gemini_e_audita(self):
@@ -157,7 +166,20 @@ class TestGemini(CasoTeste):
     def test_listar_modelos_no_falso(self):
         self._falso()
         nomes = gemini.listar_modelos(self.app.pasta)
-        self.assertEqual(nomes, ["gemini-2.5-flash"])
+        self.assertEqual(nomes[0], "gemini-3.8-flash")
+        self.assertIn("gemini-2.5-flash", nomes)
+
+    def test_testar_troca_modelo_fora_de_linha(self):
+        self._falso()
+        gemini.salvar(self.app.pasta, self.usuario, chave="teste-chave-gemini", confirmado=True,
+                      modelo="gemini-2.5-flash")
+        FalsoGemini.recusar = "gemini-2.5-flash"
+        r = gemini.testar(self.app.pasta)
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["meta"]["modelo"], "gemini-3.8-flash")
+        self.assertGreaterEqual(len(FalsoGemini.recebido), 2)
+        with open(os.path.join(self.app.pasta, "gemini.json"), encoding="utf-8") as f:
+            self.assertEqual(json.load(f)["modelo"], "gemini-3.8-flash")
 
 
 class TestGeminiHTTP(CasoTeste):
@@ -218,7 +240,7 @@ class TestGeminiHTTP(CasoTeste):
         self.assertEqual(st, 400)
         st, modelos = self.req("/api/ia/modelos")
         self.assertEqual(st, 200)
-        self.assertIn("gemini-2.5-flash", modelos["gemini"]["modelos"])
+        self.assertIn("gemini-3.8-flash", modelos["gemini"]["modelos"])
         st, _ = self.req("/api/ia/gemini", {"remover": True})
         self.assertEqual(st, 200)
         st, modelos = self.req("/api/ia/modelos")
@@ -239,6 +261,7 @@ class TestGeminiHTTP(CasoTeste):
     def test_chat_http_com_gemini_falso(self):
         FalsoGemini.recebido = []
         FalsoGemini.falhar = False
+        FalsoGemini.recusar = None
         self.falso = ThreadingHTTPServer(("127.0.0.1", 0), FalsoGemini)
         threading.Thread(target=self.falso.serve_forever, daemon=True).start()
         os.environ["ANALISE_GEMINI_TESTE"] = "1"

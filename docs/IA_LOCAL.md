@@ -22,7 +22,7 @@ Tudo isso é **hipótese de trabalho**, com fonte e linha, não conclusão.
 1. Peça a chave à TI da unidade (parceria Gemini da Polícia Civil). Se a TI pediu para gerar no Google AI Studio: abra [aistudio.google.com/apikey](https://aistudio.google.com/apikey), entre com a **conta institucional**, clique em **Create API key** e copie (em geral começa com `AIza`).
 2. Na aba **4. Análise**, cole a chave, marque **Autorizo o envio** e clique em **Salvar e testar**. O teste manda só a palavra «ok», sem dados do caso. Endpoint Vertex fica em *Opções avançadas*, só se a TI pedir.
 3. Anexe o boletim, o relatório e outros documentos no campo da própria aba (antes de perguntar). Sem eles, o Gemini trabalha só com o extrato e a análise local.
-4. No seletor do chat, deixe `Gemini · gemini-2.5-flash` (ou outro). A pergunta então vai à nuvem; o aviso na resposta deixa isso explícito.
+4. No seletor do chat, deixe `Gemini · gemini-3.8-flash` (ou outro). A pergunta então vai à nuvem; o aviso na resposta deixa isso explícito.
 5. **Remover chave** apaga `dados/gemini.json` deste computador.
 
 Variáveis (para instalação da unidade, se preferir não colar na tela): `ANALISE_GEMINI_CHAVE`, `ANALISE_GEMINI_ENDPOINT`, `ANALISE_GEMINI_MODELO`. Com a variável da chave definida, o envio já conta como autorizado pelo administrador.
